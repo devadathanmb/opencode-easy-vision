@@ -204,7 +204,7 @@ Then configure the plugin to use it:
 ```
 
 > [!TIP]
-> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credit card. Get a free API key at [openrouter.ai](https://openrouter.ai).
+> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits. 
 
 ### Custom Prompt Template
 
