@@ -23,8 +23,8 @@
   "author": "devadathanmb",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.1.25",
-    "@types/node": "^22.0.0",
+    "@opencode-ai/plugin": "^1.2.26",
+    "@types/node": "^25.0.0",
     "typescript": "^5.7.0"
   },
   "peerDependencies": {

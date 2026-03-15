@@ -143,7 +143,7 @@ async function loadPluginConfig(directory: string, log: Logger): Promise<void> {
   );
   if (modelsResult.source !== "default") {
     log(
-      `Loaded models from ${modelsResult.source} config: ${modelsResult.value!.join(", ")}`,
+      `Loaded models from ${modelsResult.source} config: ${modelsResult.value?.join(", ")}`,
     );
   } else {
     log(`Using default models: ${DEFAULT_MODEL_PATTERNS.join(", ")}`);
@@ -170,7 +170,7 @@ async function loadPluginConfig(directory: string, log: Logger): Promise<void> {
     undefined,
   );
   if (templateResult.source !== "default") {
-    log(`Using promptTemplate from ${templateResult.source} config (${templateResult.value!.length} chars)`);
+    log(`Using promptTemplate from ${templateResult.source} config (${templateResult.value?.length ?? 0} chars)`);
   } else {
     log("Using default (hardcoded) injection prompt template");
   }
@@ -320,7 +320,7 @@ async function handleDataUrl(
     log(`Saved image to: ${savedPath}`);
     return { path: savedPath, mime: parsed.mime, partId: filePart.id };
   } catch (err) {
-    log(`Failed to save image: ${err}`);
+    log(`Failed to save image: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -382,7 +382,7 @@ async function processImagePart(
   }
 
   log(
-    `Unsupported URL scheme for part ${filePart.id}: ${url.substring(0, 50)}...`,
+    `Unsupported URL scheme for part ${filePart.id}: ${url.slice(0, 50)}...`,
   );
   return null;
 }
@@ -396,7 +396,7 @@ async function extractImagesFromParts(
   for (const part of parts) {
     if (!isImageFilePart(part)) continue;
 
-    const result = await processImagePart(part as FilePart, log);
+    const result = await processImagePart(part, log);
     if (result) {
       savedImages.push(result);
     }

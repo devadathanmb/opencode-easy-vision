@@ -55,9 +55,9 @@ The MiniMax Coding Plan MCP server must be configured in your `opencode.json`:
 {
   "mcp": {
     "MiniMax": {
-      "command": "uvx",
-      "args": ["minimax-coding-plan-mcp"],
-      "env": {
+      "type": "local",
+      "command": ["uvx", "minimax-coding-plan-mcp"],
+      "environment": {
         "MINIMAX_API_KEY": "your-api-key-here",
         "MINIMAX_API_HOST": "https://api.minimax.io"
       }
@@ -92,10 +92,10 @@ This plugin automates the vision pipeline so you don't have to think about it.
 
 ## Supported Models
 
-By default, the plugin activates for MiniMax models:
+By default, the plugin activates for MiniMax models using the patterns `["minimax/*", "*/abab*"]`:
 
-* **Provider ID** containing `minimax`
-* **Model ID** containing `minimax` or `abab`
+* `minimax/*` — all models from the `minimax` provider
+* `*/abab*` — any model whose ID contains `abab`, regardless of provider
 
 **Examples:**
 * `minimax/minimax-m2.1`
@@ -135,7 +135,7 @@ You can enable this for other models by creating a config file.
 * `*` matches everything
 * `*text*` matches values containing `text`
 
-If the config is missing or empty, it defaults to MiniMax-only behavior.
+If the config is missing or empty, it defaults to `["minimax/*", "*/abab*"]`.
 
 #### Configuration Examples
 

@@ -6,7 +6,7 @@ TypeScript plugin for OpenCode that enables vision support for models lacking na
 
 - **Language**: TypeScript (ES2022, strict mode)
 - **Runtime**: Node.js >= 18.0.0
-- **Framework**: `@opencode-ai/plugin` (peer dep >=1.0.0, dev ^1.1.25)
+- **Framework**: `@opencode-ai/plugin` (peer dep >=1.0.0, dev ^1.2.26)
 - **Module System**: ES modules only
 - **Architecture**: Single-file (`src/index.ts`) — all logic lives here
 
@@ -73,8 +73,9 @@ export default MinimaxEasyVisionPlugin;
 ### Key Types
 ```typescript
 interface PluginConfig {
-  models?: string[];         // model patterns; defaults to DEFAULT_MODEL_PATTERNS
+  models?: string[];          // model patterns; defaults to DEFAULT_MODEL_PATTERNS
   imageAnalysisTool?: string; // MCP tool name; defaults to DEFAULT_IMAGE_ANALYSIS_TOOL
+  promptTemplate?: string;    // custom injection prompt; must include at least one variable
 }
 
 interface SavedImage {
