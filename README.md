@@ -21,6 +21,7 @@ It restores the "paste and ask" workflow by automatically saving image assets an
     * [Wildcard Rules](#wildcard-rules)
     * [Configuration Examples](#configuration-examples)
   * [Custom Image Analysis Tool](#custom-image-analysis-tool)
+  * [Custom Prompt Template](#custom-prompt-template)
 * [Supported Image Formats](#supported-image-formats)
 * [Usage](#usage)
   * [Example Interaction](#example-interaction)
@@ -164,29 +165,67 @@ If the config is missing or empty, it defaults to MiniMax-only behavior.
 
 ### Custom Image Analysis Tool
 
-By default, the plugin uses the `mcp_minimax_understand_image` tool from the MiniMax Coding Plan MCP. You can configure a different tool for image analysis:
-
-```json
-{
-  "models": ["*"],
-  "imageAnalysisTool": "mcp_openrouter_analyze_image"
-}
-```
+By default, the plugin uses the `mcp_minimax_understand_image` tool from the MiniMax Coding Plan MCP. You can configure a different tool for image analysis.
 
 > [!NOTE]
 > The `imageAnalysisTool` value is the **tool name**, not the MCP server name.
 >
 > MCP servers expose one or more tools—for example, the MiniMax Coding Plan MCP server exposes the
-> `mcp_minimax_understand_image` tool.
+> `mcp_minimax_understand_image` tool. OpenCode prefixes tool names with `mcp_<server-name>_`.
 
+#### Example: openrouter-image-mcp
 
-This allows you to use tools from other MCP servers that provide image analysis capabilities, such as:
+[openrouter-image-mcp](https://github.com/JonathanJude/openrouter-image-mcp) routes image analysis through OpenRouter, giving you access to any vision-capable model including free ones.
 
-* [openrouter-image-mcp](https://github.com/JonathanJude/openrouter-image-mcp) - Uses OpenRouter with GPT-4V, Claude, Gemini
-* [mcp-image-recognition](https://github.com/mario-andreschak/mcp-image-recognition) - Uses Anthropic/OpenAI Vision APIs
-* [Peekaboo](https://github.com/steipete/Peekaboo) - macOS screenshot + AI analysis
+Add the MCP server to your `opencode.json`:
 
-The plugin will instruct the model to use the configured tool. The tool should accept an image file path as input.
+```json
+{
+  "mcp": {
+    "openrouter_image": {
+      "type": "local",
+      "command": ["npx", "openrouter-image-mcp"],
+      "environment": {
+        "OPENROUTER_API_KEY": "your-api-key-here",
+        "OPENROUTER_MODEL": "nvidia/nemotron-nano-12b-v2-vl:free"
+      }
+    }
+  }
+}
+```
+
+Then configure the plugin to use it:
+
+```json
+{
+  "models": ["minimax/*"],
+  "imageAnalysisTool": "mcp_openrouter_image_analyze_image"
+}
+```
+
+> [!TIP]
+> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credit card. Get a free API key at [openrouter.ai](https://openrouter.ai).
+
+### Custom Prompt Template
+
+By default, the plugin generates a fixed instruction prompt telling the model to use the image analysis tool. You can override this with a custom template:
+
+```json
+{
+  "promptTemplate": "I'm attaching {imageCount} image(s) for you to analyze.\n\nImages:\n{imageList}\n\nUse the `{toolName}` tool on each one.\n\nMy question: {userText}"
+}
+```
+
+#### Available Variables
+
+| Variable | Description |
+| -------------- | --------------------------------------------- |
+| `{imageList}` | Newline-separated list: `- Image 1: /path/to/file` |
+| `{imageCount}` | Number of images, e.g. `1`, `3` |
+| `{toolName}` | The configured MCP tool name |
+| `{userText}` | The user's original message text (may be empty) |
+
+The template must contain at least one variable — if none are present, the plugin falls back to the default prompt.
 
 ## Supported Image Formats
 

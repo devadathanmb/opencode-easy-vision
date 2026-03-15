@@ -13,6 +13,8 @@ const CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
 const TEMP_DIR_NAME = "opencode-minimax-vision";
 const MAX_TOOL_NAME_LENGTH = 256;
 
+const PROMPT_TEMPLATE_VARIABLES = ["{imageList}", "{imageCount}", "{toolName}", "{userText}"] as const;
+
 const DEFAULT_MODEL_PATTERNS: readonly string[] = ["minimax/*", "*/abab*"];
 const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
 
@@ -35,6 +37,7 @@ const MIME_TO_EXTENSION: Record<string, string> = {
 interface PluginConfig {
   models?: string[];
   imageAnalysisTool?: string;
+  promptTemplate?: string;
 }
 
 interface SavedImage {
@@ -79,6 +82,14 @@ function parseImageAnalysisTool(value: unknown): string | undefined {
   return value;
 }
 
+function parsePromptTemplate(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (trimmed === "") return undefined;
+  if (!PROMPT_TEMPLATE_VARIABLES.some((v) => trimmed.includes(v))) return undefined;
+  return trimmed;
+}
+
 function parseConfigObject(raw: unknown): PluginConfig {
   if (!raw || typeof raw !== "object") return {};
 
@@ -86,6 +97,7 @@ function parseConfigObject(raw: unknown): PluginConfig {
   return {
     models: parseModelsArray(obj.models),
     imageAnalysisTool: parseImageAnalysisTool(obj.imageAnalysisTool),
+    promptTemplate: parsePromptTemplate(obj.promptTemplate),
   };
 }
 
@@ -151,9 +163,22 @@ async function loadPluginConfig(directory: string, log: Logger): Promise<void> {
     log(`Using default imageAnalysisTool: ${DEFAULT_IMAGE_ANALYSIS_TOOL}`);
   }
 
+  // Resolve promptTemplate with precedence
+  const templateResult = selectWithPrecedence(
+    projectConfig?.promptTemplate,
+    userConfig?.promptTemplate,
+    undefined,
+  );
+  if (templateResult.source !== "default") {
+    log(`Using promptTemplate from ${templateResult.source} config (${templateResult.value!.length} chars)`);
+  } else {
+    log("Using default (hardcoded) injection prompt template");
+  }
+
   pluginConfig = {
     models: modelsResult.value,
     imageAnalysisTool: toolResult.value,
+    promptTemplate: templateResult.value,
   };
 }
 
@@ -165,6 +190,10 @@ function getConfiguredModels(): readonly string[] {
 
 function getImageAnalysisTool(): string {
   return pluginConfig.imageAnalysisTool ?? DEFAULT_IMAGE_ANALYSIS_TOOL;
+}
+
+function getPromptTemplate(): string | undefined {
+  return pluginConfig.promptTemplate;
 }
 
 // Pattern Matching (supports wildcards: *, prefix*, *suffix, *contains*)
@@ -383,6 +412,17 @@ async function extractImagesFromParts(
 // MCP tool (e.g., understand_image) with the file path or URL.
 // The user's original text is preserved as "User's request: ...".
 
+function applyPromptTemplate(
+  template: string,
+  vars: { imageList: string; imageCount: number; toolName: string; userText: string },
+): string {
+  return template
+    .replace(/\{imageList\}/g, vars.imageList)
+    .replace(/\{imageCount\}/g, String(vars.imageCount))
+    .replace(/\{toolName\}/g, vars.toolName)
+    .replace(/\{userText\}/g, vars.userText);
+}
+
 function generateInjectionPrompt(
   images: SavedImage[],
   userText: string,
@@ -390,10 +430,21 @@ function generateInjectionPrompt(
 ): string {
   if (images.length === 0) return userText;
 
-  const isSingle = images.length === 1;
   const imageList = images
     .map((img, idx) => `- Image ${idx + 1}: ${img.path}`)
     .join("\n");
+
+  const customTemplate = getPromptTemplate();
+  if (customTemplate !== undefined) {
+    return applyPromptTemplate(customTemplate, {
+      imageList,
+      imageCount: images.length,
+      toolName,
+      userText,
+    });
+  }
+
+  const isSingle = images.length === 1;
 
   const imageCountText = isSingle ? "an image" : `${images.length} images`;
   const imagePlural = isSingle ? "image is" : "images are";
