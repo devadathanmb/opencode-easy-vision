@@ -13,7 +13,12 @@ const CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
 const TEMP_DIR_NAME = "opencode-minimax-vision";
 const MAX_TOOL_NAME_LENGTH = 256;
 
-const PROMPT_TEMPLATE_VARIABLES = ["{imageList}", "{imageCount}", "{toolName}", "{userText}"] as const;
+const PROMPT_TEMPLATE_VARIABLES = [
+  "{imageList}",
+  "{imageCount}",
+  "{toolName}",
+  "{userText}",
+] as const;
 
 const DEFAULT_MODEL_PATTERNS: readonly string[] = ["minimax/*", "*/abab*"];
 const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
@@ -86,7 +91,8 @@ function parsePromptTemplate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (trimmed === "") return undefined;
-  if (!PROMPT_TEMPLATE_VARIABLES.some((v) => trimmed.includes(v))) return undefined;
+  if (!PROMPT_TEMPLATE_VARIABLES.some((v) => trimmed.includes(v)))
+    return undefined;
   return trimmed;
 }
 
@@ -170,7 +176,9 @@ async function loadPluginConfig(directory: string, log: Logger): Promise<void> {
     undefined,
   );
   if (templateResult.source !== "default") {
-    log(`Using promptTemplate from ${templateResult.source} config (${templateResult.value?.length ?? 0} chars)`);
+    log(
+      `Using promptTemplate from ${templateResult.source} config (${templateResult.value?.length ?? 0} chars)`,
+    );
   } else {
     log("Using default (hardcoded) injection prompt template");
   }
@@ -320,7 +328,9 @@ async function handleDataUrl(
     log(`Saved image to: ${savedPath}`);
     return { path: savedPath, mime: parsed.mime, partId: filePart.id };
   } catch (err) {
-    log(`Failed to save image: ${err instanceof Error ? err.message : String(err)}`);
+    log(
+      `Failed to save image: ${err instanceof Error ? err.message : String(err)}`,
+    );
     return null;
   }
 }
@@ -381,9 +391,7 @@ async function processImagePart(
     return handleHttpUrl(url, filePart, log);
   }
 
-  log(
-    `Unsupported URL scheme for part ${filePart.id}: ${url.slice(0, 50)}...`,
-  );
+  log(`Unsupported URL scheme for part ${filePart.id}: ${url.slice(0, 50)}...`);
   return null;
 }
 
@@ -414,7 +422,12 @@ async function extractImagesFromParts(
 
 function applyPromptTemplate(
   template: string,
-  vars: { imageList: string; imageCount: number; toolName: string; userText: string },
+  vars: {
+    imageList: string;
+    imageCount: number;
+    toolName: string;
+    userText: string;
+  },
 ): string {
   return template
     .replace(/\{imageList\}/g, vars.imageList)
