@@ -20,7 +20,7 @@ const PROMPT_TEMPLATE_VARIABLES = [
   "{userText}",
 ] as const;
 
-const DEFAULT_MODEL_PATTERNS: readonly string[] = ["minimax/*", "*/abab*"];
+const DEFAULT_MODEL_PATTERNS: readonly string[] = ["minimax/*"];
 const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
 
 const SUPPORTED_MIME_TYPES = new Set([

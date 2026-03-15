@@ -92,14 +92,13 @@ This plugin automates the vision pipeline so you don't have to think about it.
 
 ## Supported Models
 
-By default, the plugin activates for MiniMax models using the patterns `["minimax/*", "*/abab*"]`:
+By default, the plugin activates for MiniMax models using the pattern `["minimax/*"]`:
 
 * `minimax/*` — all models from the `minimax` provider
-* `*/abab*` — any model whose ID contains `abab`, regardless of provider
 
 **Examples:**
+* `minimax/minimax-m2.5`
 * `minimax/minimax-m2.1`
-* `minimax/abab6.5s-chat`
 
 ### Custom Model Configuration
 
@@ -114,19 +113,18 @@ You can enable this for other models by creating a config file.
 
 ```json
 {
-  "models": ["minimax/*", "opencode/*", "*/glm-4.7-free"]
+  "models": ["minimax/*", "openai/*", "*/minimax-m2.5"]
 }
 ```
 
 #### Pattern Syntax
 
-| Pattern          | Matches                                 |
-| ---------------- | --------------------------------------- |
-| `*`              | Match ALL models                        |
-| `minimax/*`      | All models from the `minimax` provider  |
-| `*/glm-4.7-free` | Specific model from any provider        |
-| `opencode/*`     | All models from the `opencode` provider |
-| `*/abab*`        | Any model containing `abab`             |
+| Pattern               | Matches                                    |
+| --------------------- | ------------------------------------------ |
+| `*`                   | Match ALL models                           |
+| `minimax/*`           | All models from the `minimax` provider     |
+| `*/minimax-m2.5`      | Specific model from any provider           |
+| `openai/*`            | All models from the `openai` provider      |
 
 #### Wildcard Rules
 
@@ -135,7 +133,7 @@ You can enable this for other models by creating a config file.
 * `*` matches everything
 * `*text*` matches values containing `text`
 
-If the config is missing or empty, it defaults to `["minimax/*", "*/abab*"]`.
+If the config is missing or empty, it defaults to `["minimax/*"]`.
 
 #### Configuration Examples
 
@@ -151,7 +149,7 @@ If the config is missing or empty, it defaults to `["minimax/*", "*/abab*"]`.
 
 ```json
 {
-  "models": ["minimax/*", "opencode/*", "google/*"]
+  "models": ["minimax/*", "openai/*", "google/*"]
 }
 ```
 
@@ -159,7 +157,7 @@ If the config is missing or empty, it defaults to `["minimax/*", "*/abab*"]`.
 
 ```json
 {
-  "models": ["minimax/*", "opencode/gpt-5-nano", "*/claude-3-7-sonnet*"]
+  "models": ["minimax/*", "openai/gpt-4o", "*/minimax-m2.5"]
 }
 ```
 
