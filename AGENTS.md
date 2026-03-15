@@ -104,7 +104,7 @@ Config is read from JSON files (not `opencode.json`), with project-level taking 
 
 ```json
 {
-  "models": ["minimax/*", "openai/*", "*/minimax-m2.5"],
+  "models": ["minimax/*", "z-ai/*", "*/minimax-m2.5"],
   "imageAnalysisTool": "mcp_minimax_understand_image"
 }
 ```
@@ -118,7 +118,7 @@ Format: `provider/model` with wildcard support:
 - `*` — all models
 - `minimax/*` — all models from provider
 - `*/minimax-m2.5` — specific model from any provider
-- `openai/gpt-4o` — exact match
+- `z-ai/glm-4.7` — exact match
 
 
 No-slash patterns match against both provider and model ID.

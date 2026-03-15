@@ -113,7 +113,7 @@ You can enable this for other models by creating a config file.
 
 ```json
 {
-  "models": ["minimax/*", "openai/*", "*/minimax-m2.5"]
+  "models": ["minimax/*", "z-ai/*", "*/minimax-m2.5"]
 }
 ```
 
@@ -124,7 +124,7 @@ You can enable this for other models by creating a config file.
 | `*`                   | Match ALL models                           |
 | `minimax/*`           | All models from the `minimax` provider     |
 | `*/minimax-m2.5`      | Specific model from any provider           |
-| `openai/*`            | All models from the `openai` provider      |
+| `z-ai/*`              | All models from the `z-ai` provider        |
 
 #### Wildcard Rules
 
@@ -149,7 +149,7 @@ If the config is missing or empty, it defaults to `["minimax/*"]`.
 
 ```json
 {
-  "models": ["minimax/*", "openai/*", "google/*"]
+  "models": ["minimax/*", "z-ai/*", "google/*"]
 }
 ```
 
@@ -157,7 +157,7 @@ If the config is missing or empty, it defaults to `["minimax/*"]`.
 
 ```json
 {
-  "models": ["minimax/*", "openai/gpt-4o", "*/minimax-m2.5"]
+  "models": ["minimax/*", "z-ai/glm-4.7", "*/minimax-m2.5"]
 }
 ```
 
