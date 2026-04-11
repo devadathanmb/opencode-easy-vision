@@ -1,37 +1,22 @@
-# Opencode MiniMax Easy Vision
+# OpenCode Easy Vision
 
-MiniMax Easy Vision is a plugin for [OpenCode](https://opencode.ai) that enables **vision support** for models that lack native image attachment support.
+An [OpenCode](https://opencode.ai) plugin that adds **vision support** — paste images directly into the chat and ask questions about them, with any model.
 
-Originally built for [MiniMax](https://www.minimax.io/) models, it can be configured to work with any model that requires MCP-based image handling.
-
-It restores the "paste and ask" workflow by automatically saving image assets and routing them through the [MiniMax Coding Plan MCP](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP)
+Many models — especially newer and open-weight ones — don't support native image attachments. They can analyze images, but only through an explicit MCP tool call with a file path, not through direct attachment. This plugin bridges that gap: it intercepts pasted images, saves them locally, and routes them through an MCP image analysis tool — restoring the seamless paste-and-ask workflow you'd expect.
 
 ## Table of Contents
 
 * [Demo](#demo)
 * [The Problem](#the-problem)
-* [Prerequisites](#prerequisites)
-* [Installation](#installation)
-* [What This Plugin Does](#what-this-plugin-does)
-* [Supported Models](#supported-models)
-  * [Custom Model Configuration](#custom-model-configuration)
-    * [Locations (Priority Order)](#locations-priority-order)
-    * [Config Format](#config-format)
-    * [Pattern Syntax](#pattern-syntax)
-    * [Wildcard Rules](#wildcard-rules)
-    * [Configuration Examples](#configuration-examples)
-  * [Custom Image Analysis Tool](#custom-image-analysis-tool)
-  * [Custom Prompt Template](#custom-prompt-template)
+* [Setup](#setup)
+* [Configuration](#configuration)
 * [Supported Image Formats](#supported-image-formats)
 * [Usage](#usage)
-  * [Example Interaction](#example-interaction)
-* [Development](#development)
+* [Contributing](#contributing)
 * [License](#license)
 * [References](#references)
 
 ## Demo
-
-See how it works:
 
 https://github.com/user-attachments/assets/df396c6c-6fa8-46b8-8984-c003ecf1c12c
 
@@ -39,17 +24,21 @@ https://github.com/user-attachments/assets/826f90ea-913f-427e-ace8-0b711302c497
 
 ## The Problem
 
-When using MiniMax models (like MiniMax M2.1) in OpenCode, native image attachments aren't supported. 
+Some models can analyze images, but only when given an explicit file path through an MCP tool — not through direct attachment. Without this plugin, this breaks the normal chat flow:
 
-These models expect the MiniMax Coding Plan MCP's `understand_image` tool, which requires an explicit file path. This breaks the normal flow:
+* **Ignored images**: Pasted images are silently dropped.
+* **Manual steps**: You have to save the screenshot, locate the path, and reference it manually.
+* **Broken flow**: The seamless paste-and-ask experience you get with Claude or GPT is lost.
 
-* **Ignored images**: Pasted images are simply ignored by the model.
-* **Manual steps**: You have to save screenshots manually, find the path, and reference it in your prompt.
-* **Broken flow**: The "paste and ask" experience available with Claude or GPT models is lost.
+This plugin automates all of that. You paste, you ask — the plugin handles the rest.
 
-## Prerequisites
+## Setup
 
-The MiniMax Coding Plan MCP server must be configured in your `opencode.json`:
+### 1. Configure an MCP image analysis tool
+
+The plugin works with any MCP server that exposes an image analysis tool. Add one to your `opencode.json`.
+
+**Default — MiniMax Coding Plan MCP:**
 
 ```json
 {
@@ -66,116 +55,9 @@ The MiniMax Coding Plan MCP server must be configured in your `opencode.json`:
 }
 ```
 
-## Installation
+**Alternative example — [openrouter-image-mcp](https://github.com/JonathanJude/openrouter-image-mcp):**
 
-Add the plugin to the `plugin` array in your `opencode.json` file:
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-minimax-easy-vision"]
-}
-```
-
-## What This Plugin Does
-
-This plugin automates the vision pipeline so you don't have to think about it.
-
-**How it works:**
-
-1. **Detects** when a configured model is active.
-2. **Intercepts** images pasted into the chat.
-3. **Saves** them to a temporary local directory.
-4. **Injects** the necessary context for the model to invoke the `understand_image` tool with the correct path.
-
-**Result:** You just paste the image and ask your question just like how you do with Claude or GPT models. The plugin handles the rest.
-
-## Supported Models
-
-By default, the plugin activates for MiniMax models using the pattern `["minimax/*"]`:
-
-* `minimax/*` — all models from the `minimax` provider
-
-**Examples:**
-* `minimax/minimax-m2.5`
-* `minimax/minimax-m2.1`
-
-### Custom Model Configuration
-
-You can enable this for other models by creating a config file.
-
-#### Locations (Priority Order)
-
-1. **Project level**: `.opencode/opencode-minimax-easy-vision.json`
-2. **User level**: `~/.config/opencode/opencode-minimax-easy-vision.json`
-
-#### Config Format
-
-```json
-{
-  "models": ["minimax/*", "z-ai/*", "*/minimax-m2.5"]
-}
-```
-
-#### Pattern Syntax
-
-| Pattern               | Matches                                    |
-| --------------------- | ------------------------------------------ |
-| `*`                   | Match ALL models                           |
-| `minimax/*`           | All models from the `minimax` provider     |
-| `*/minimax-m2.5`      | Specific model from any provider           |
-| `z-ai/*`              | All models from the `z-ai` provider        |
-
-#### Wildcard Rules
-
-* `*suffix` matches values ending with `suffix`
-* `prefix*` matches values starting with `prefix`
-* `*` matches everything
-* `*text*` matches values containing `text`
-
-If the config is missing or empty, it defaults to `["minimax/*"]`.
-
-#### Configuration Examples
-
-**Enable for all models:**
-
-```json
-{
-  "models": ["*"]
-}
-```
-
-**Specific providers:**
-
-```json
-{
-  "models": ["minimax/*", "z-ai/*", "google/*"]
-}
-```
-
-**Mix of providers and models:**
-
-```json
-{
-  "models": ["minimax/*", "z-ai/glm-4.7", "*/minimax-m2.5"]
-}
-```
-
-### Custom Image Analysis Tool
-
-By default, the plugin uses the `mcp_minimax_understand_image` tool from the MiniMax Coding Plan MCP. You can configure a different tool for image analysis.
-
-> [!NOTE]
-> The `imageAnalysisTool` value is the **tool name**, not the MCP server name.
->
-> MCP servers expose one or more tools—for example, the MiniMax Coding Plan MCP server exposes the
-> `mcp_minimax_understand_image` tool. OpenCode prefixes tool names with `mcp_<server-name>_`.
-
-#### Example: openrouter-image-mcp
-
-[openrouter-image-mcp](https://github.com/JonathanJude/openrouter-image-mcp) routes image analysis through OpenRouter, giving you access to any vision-capable model including free ones.
-
-Add the MCP server to your `opencode.json`:
+This routes image analysis through OpenRouter, giving you access to any vision-capable model including free ones.
 
 ```json
 {
@@ -192,21 +74,65 @@ Add the MCP server to your `opencode.json`:
 }
 ```
 
-Then configure the plugin to use it:
+> [!TIP]
+> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits.
+
+Any MCP server with an image analysis tool will work — the above are just examples.
+
+### 2. Install the plugin
+
+Add `opencode-minimax-easy-vision` to the `plugin` array in your `opencode.json`:
 
 ```json
 {
-  "models": ["minimax/*"],
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["opencode-minimax-easy-vision"]
+}
+```
+
+## Configuration
+
+> [!IMPORTANT]
+> By default, this plugin only activates for **MiniMax models**. If you're using a different model and nothing is happening, you need to configure the plugin to include that model — see [Model Patterns](#model-patterns) below.
+
+Config files are loaded in priority order:
+
+1. **Project level**: `.opencode/opencode-minimax-easy-vision.json`
+2. **User level**: `~/.config/opencode/opencode-minimax-easy-vision.json`
+
+### Model Patterns
+
+Control which models the plugin activates for:
+
+```json
+{
+  "models": ["z-ai/*", "*/some-model"]
+}
+```
+
+| Pattern          | Matches                                    |
+| ---------------- | ------------------------------------------ |
+| `*`              | All models                                 |
+| `z-ai/*`         | All models from a specific provider        |
+| `*/some-model`   | A specific model from any provider         |
+| `z-ai/glm-4.7`   | Exact match                                |
+
+If no config file exists, the plugin defaults to MiniMax models.
+
+### Image Analysis Tool
+
+By default the plugin uses `mcp_minimax_understand_image` from the MiniMax Coding Plan MCP. To use a different tool, set `imageAnalysisTool` to the tool name as it appears in OpenCode (prefixed as `mcp_<server-name>_<tool>`):
+
+```json
+{
+  "models": ["z-ai/*"],
   "imageAnalysisTool": "mcp_openrouter_image_analyze_image"
 }
 ```
 
-> [!TIP]
-> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits. 
+### Prompt Template
 
-### Custom Prompt Template
-
-By default, the plugin generates a fixed instruction prompt telling the model to use the image analysis tool. You can override this with a custom template:
+Override the default injection prompt with a custom template:
 
 ```json
 {
@@ -214,30 +140,24 @@ By default, the plugin generates a fixed instruction prompt telling the model to
 }
 ```
 
-#### Available Variables
+| Variable       | Description                                             |
+| -------------- | ------------------------------------------------------- |
+| `{imageList}`  | Newline-separated list: `- Image 1: /path/to/file`     |
+| `{imageCount}` | Number of images, e.g. `1`, `3`                        |
+| `{toolName}`   | The configured MCP tool name                           |
+| `{userText}`   | The user's original message text (may be empty)        |
 
-| Variable | Description |
-| -------------- | --------------------------------------------- |
-| `{imageList}` | Newline-separated list: `- Image 1: /path/to/file` |
-| `{imageCount}` | Number of images, e.g. `1`, `3` |
-| `{toolName}` | The configured MCP tool name |
-| `{userText}` | The user's original message text (may be empty) |
-
-The template must contain at least one variable — if none are present, the plugin falls back to the default prompt.
+The template must include at least one variable — if none are present, the plugin falls back to the default prompt.
 
 ## Supported Image Formats
 
-* PNG
-* JPEG
-* WebP
-
-*(Limited by the [MiniMax Coding Plan MCP](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP) `understand_image` tool.)*
+PNG, JPEG, WebP — exact formats supported depend on the image analysis tool you've configured.
 
 ## Usage
 
 1. Select a supported model in OpenCode.
 2. Paste an image (`Cmd+V` / `Ctrl+V`).
-3. Ask a question about it, just like how you do for other models with native vision support.
+3. Ask your question, just like any model with native vision support.
 
 ### Example Interaction
 
@@ -245,31 +165,20 @@ The template must contain at least one variable — if none are present, the plu
 >
 > **Model**: I'll check the image using the `understand_image` tool.
 > `[Calls mcp_minimax_understand_image path="/tmp/xyz.png"]`
-> 
+>
 > **Model**: The error suggests a syntax error on line 12.
 
-## Development
+## Contributing
 
-1. Install dependencies and build:
-   ```bash
-   npm install
-   npm run build
-   ```
-2. The built plugin will be available at `dist/index.js`.
-3. Symlink it into the global plugin directory and restart OpenCode to pick up changes:
-   ```bash
-   mkdir -p ~/.config/opencode/plugin
-   ln -sf $(pwd)/dist/index.js ~/.config/opencode/plugin/minimax-easy-vision.js
-   ```
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for local development setup.
 
 ## License
 
-AGPL-3.0. See [LICENSE](./LICENSE)
+AGPL-3.0. See [LICENSE](./LICENSE).
 
 ## References
 
 * [OpenCode Official Website](https://opencode.ai)
 * [OpenCode Plugins Documentation](https://opencode.ai/docs/plugins/)
-* [MiniMax Official Website](https://www.minimax.io/)
 * [MiniMax Coding Plan MCP Repository](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP)
-* [MiniMax API Documentation](https://platform.minimax.io/docs/guides/coding-plan-mcp-guide)
+* [openrouter-image-mcp Repository](https://github.com/JonathanJude/openrouter-image-mcp)
