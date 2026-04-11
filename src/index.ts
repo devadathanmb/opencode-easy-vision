@@ -20,7 +20,17 @@ const PROMPT_TEMPLATE_VARIABLES = [
   "{userText}",
 ] as const;
 
-const DEFAULT_MODEL_PATTERNS: readonly string[] = ["minimax/*"];
+const DEFAULT_MODEL_PATTERNS: readonly string[] = [
+  "minimax/*",
+  "minimax-cn/*",
+  "minimax-coding-plan/*",
+  "minimax-cn-coding-plan/*",
+  // "coding-plan" is being renamed to "token-plan" in opencode
+  // https://github.com/anomalyco/opencode/pull/21095
+  // Include token-plan variants proactively for when the rename lands in models.dev
+  "minimax-token-plan/*",
+  "minimax-cn-token-plan/*",
+];
 const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
 
 const SUPPORTED_MIME_TYPES = new Set([
