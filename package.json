@@ -1,7 +1,7 @@
 {
   "name": "opencode-minimax-easy-vision",
   "version": "1.4.0",
-  "description": "OpenCode plugin that enables vision support for Minimax models by saving pasted images and injecting MCP tool instructions",
+    "description": "OpenCode plugin that restores the paste-and-ask workflow for text-only models by saving pasted images and injecting MCP tool instructions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -22,7 +22,7 @@
     "mcp",
     "image"
   ],
-  "author": "devadathanmb",
+  "author": "Devadathan M B <devadathanmb@gmail.com>",
   "license": "AGPL-3.0",
   "devDependencies": {
     "@opencode-ai/plugin": "^1.2.26",
