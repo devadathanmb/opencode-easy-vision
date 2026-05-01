@@ -13,10 +13,14 @@ TypeScript plugin for OpenCode that enables vision support for models lacking na
 ## Commands
 
 ```bash
-npm install       # install deps
-npm run build     # compile src/ → dist/ (tsc)
-npm publish       # runs build first via prepublishOnly
+npm install              # install deps (also installs husky git hooks)
+npm run build            # compile src/ → dist/ (tsc)
+npm run format           # format src/ with Prettier
+npm run format:check     # check formatting without writing
+npm publish              # runs build first via prepublishOnly
 ```
+
+Husky pre-commit hook runs `npm run format` automatically. Use `git commit --no-verify` to skip.
 
 **No test framework.** Manual testing: build → add to `opencode.json` plugins → paste an image with a matching model.
 
@@ -125,7 +129,7 @@ See [CONFIGURATION.md](./CONFIGURATION.md) for the full config reference, includ
 ## Notes for Agents
 
 1. **Multi-module**: Each file in `src/` owns one responsibility. Add new files for new concerns; don't consolidate back into `index.ts`.
-2. **No linter/formatter**: Follow existing style exactly.
+2. **Formatter**: Prettier with husky pre-commit hook.
 3. **Functional over OOP**: No classes, no mutations.
 4. **ES modules only**: No `require` or `module.exports`.
 5. **Minimal deps**: Prefer Node.js built-ins over new packages.

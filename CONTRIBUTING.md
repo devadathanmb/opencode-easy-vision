@@ -11,6 +11,8 @@ npm run build
 
 The compiled plugin will be at `dist/index.js`.
 
+Husky is configured as a `prepare` script and installs automatically on `npm install`. The pre-commit hook runs `npm run format` to ensure all committed code is properly formatted. To skip the hook for a commit, use `git commit --no-verify`.
+
 ### 2. Symlink into OpenCode's plugin directory
 
 ```bash
