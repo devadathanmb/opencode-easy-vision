@@ -26,13 +26,11 @@ export const DEFAULT_MODEL_PATTERNS: readonly string[] = [
 export const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
 export const DEFAULT_CLEANUP_AFTER_HOURS = 24;
 
-// MIME types
-// image/jpg is a non-standard alias for image/jpeg (not in the IANA registry)
-// included defensively in case some environments produce it.
+// MIME types — OpenCode normalizes all JPEG variants to image/jpeg,
+// so image/jpg (non-standard, not in IANA registry) is not needed.
 export const MIME_TO_EXTENSION: Readonly<Record<string, string>> = {
   "image/png": "png",
   "image/jpeg": "jpg",
-  "image/jpg": "jpg",
   "image/webp": "webp",
 };
 
