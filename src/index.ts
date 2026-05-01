@@ -723,6 +723,12 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
 
       log("Found images in message, processing...");
 
+      // Collect all image part IDs up front so failed saves are also removed from the
+      // message — otherwise raw data: blobs stay in parts and the model can't use them.
+      const allImagePartIds = new Set(
+        lastUserMessage.parts.filter(isImageFilePart).map((p) => p.id),
+      );
+
       const savedImages = await extractImagesFromParts(
         lastUserMessage.parts,
         log,
@@ -734,6 +740,11 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
           "No images could be saved. Check logs for details.",
           "Easy Vision",
         );
+        lastUserMessage.parts = removeProcessedImageParts(
+          lastUserMessage.parts,
+          allImagePartIds,
+        );
+        messages[lastUserIndex] = lastUserMessage;
         return;
       }
 
@@ -748,10 +759,9 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         getImageAnalysisTool(),
       );
 
-      const processedIds = new Set(savedImages.map((img) => img.partId));
       lastUserMessage.parts = removeProcessedImageParts(
         lastUserMessage.parts,
-        processedIds,
+        allImagePartIds,
       );
 
       updateOrCreateTextPart(lastUserMessage, transformedText);
