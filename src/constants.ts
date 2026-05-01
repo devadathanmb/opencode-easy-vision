@@ -1,5 +1,7 @@
 export const PLUGIN_NAME = "minimax-easy-vision";
 export const CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
+export const CONFIG_FILENAME_JSONC = "opencode-minimax-easy-vision.jsonc";
+export const EXAMPLE_CONFIG_FILENAME = "opencode-minimax-easy-vision.example.jsonc";
 export const TEMP_DIR_NAME = "opencode-minimax-vision";
 export const MAX_TOOL_NAME_LENGTH = 256;
 

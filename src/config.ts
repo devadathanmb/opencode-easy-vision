@@ -1,9 +1,13 @@
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
-import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import stripJsonComments from "strip-json-comments";
 import {
   CONFIG_FILENAME,
+  CONFIG_FILENAME_JSONC,
+  EXAMPLE_CONFIG_FILENAME,
   TEMP_DIR_NAME,
   MAX_TOOL_NAME_LENGTH,
   PROMPT_TEMPLATE_VARIABLES,
@@ -21,8 +25,16 @@ function getUserConfigPath(): string {
   return join(homedir(), ".config", "opencode", CONFIG_FILENAME);
 }
 
+function getUserConfigPathJsonc(): string {
+  return join(homedir(), ".config", "opencode", CONFIG_FILENAME_JSONC);
+}
+
 function getProjectConfigPath(directory: string): string {
   return join(directory, ".opencode", CONFIG_FILENAME);
+}
+
+function getProjectConfigPathJsonc(directory: string): string {
+  return join(directory, ".opencode", CONFIG_FILENAME_JSONC);
 }
 
 // File Parsing
@@ -82,11 +94,44 @@ async function readConfigFile(
 
   try {
     const content = await readFile(configPath, "utf-8");
-    const parsed = JSON.parse(content) as unknown;
+    const stripped = stripJsonComments(content);
+    const parsed = JSON.parse(stripped) as unknown;
     return parseConfigObject(parsed);
   } catch {
     onParseError?.(configPath);
     return null;
+  }
+}
+
+// Example Config Auto-Init
+
+function getExampleConfigPath(): string {
+  const thisFile = fileURLToPath(import.meta.url);
+    return resolve(dirname(thisFile), "..", EXAMPLE_CONFIG_FILENAME);
+}
+
+async function createExampleConfigIfMissing(
+  targetPath: string,
+  log: Logger,
+): Promise<void> {
+  if (existsSync(targetPath)) {
+    return;
+  }
+
+  const examplePath = getExampleConfigPath();
+  if (!existsSync(examplePath)) {
+    log("Example config file not found in package, skipping auto-init");
+    return;
+  }
+
+  try {
+    await mkdir(dirname(targetPath), { recursive: true });
+    await copyFile(examplePath, targetPath);
+    log(`Created example config file at ${targetPath}`);
+  } catch (err) {
+    log(
+      `Failed to create example config: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
 }
 
@@ -115,11 +160,24 @@ export async function loadPluginConfig(
       `WARN: Config file has invalid JSON and will be ignored: ${path}`,
     );
 
-  const userConfig = await readConfigFile(getUserConfigPath(), onParseError);
-  const projectConfig = await readConfigFile(
-    getProjectConfigPath(directory),
-    onParseError,
-  );
+  const userJson = getUserConfigPath();
+  const userJsonc = getUserConfigPathJsonc();
+  const projectJson = getProjectConfigPath(directory);
+  const projectJsonc = getProjectConfigPathJsonc(directory);
+
+  const projectConfig =
+    (await readConfigFile(projectJsonc, onParseError)) ??
+    (await readConfigFile(projectJson, onParseError));
+  const userConfig =
+    (await readConfigFile(userJsonc, onParseError)) ??
+    (await readConfigFile(userJson, onParseError));
+
+  const userConfigFileExists =
+    existsSync(userJsonc) || existsSync(userJson);
+
+  if (!userConfigFileExists) {
+    await createExampleConfigIfMissing(userJsonc, log);
+  }
 
   const modelsResult = selectWithPrecedence(
     projectConfig?.models,

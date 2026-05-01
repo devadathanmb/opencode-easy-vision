@@ -1,0 +1,32 @@
+{
+  // Which models this plugin activates for.
+  // Wildcards: "*" = all, "provider/*" = all from provider,
+  // "*/model" = specific model from any provider, "provider/model" = exact.
+  "models": [
+    "minimax/*",
+    "minimax-cn/*",
+    "minimax-coding-plan/*",
+    "minimax-cn-coding-plan/*",
+    "minimax-token-plan/*",
+    "minimax-cn-token-plan/*"
+  ],
+
+  // MCP tool name for image analysis.
+  // Format: mcp_<server-key>_<tool>
+  "imageAnalysisTool": "mcp_minimax_understand_image",
+
+  // Custom prompt template. Must include at least one variable:
+  //   {imageList}  — newline-separated "- Image N: /path"
+  //   {imageCount} — number of images
+  //   {toolName}   — the configured MCP tool name
+  //   {userText}   — the user's original text (may be empty)
+  // Leave as null to use the built-in default template.
+  "promptTemplate": null,
+
+  // Directory where pasted images are saved before being passed to the MCP tool.
+  // Leave as null to use the OS temp directory + "opencode-minimax-vision/".
+  "tempDir": null,
+
+  // Delete temp files older than this many hours on plugin startup.
+  "cleanupAfterHours": 24
+}
