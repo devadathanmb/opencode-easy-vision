@@ -27,19 +27,18 @@ export const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
 export const DEFAULT_CLEANUP_AFTER_HOURS = 24;
 
 // MIME types
-export const SUPPORTED_MIME_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/webp",
-]);
-
-export const MIME_TO_EXTENSION: Record<string, string> = {
+// image/jpg is a non-standard alias for image/jpeg (not in the IANA registry)
+// included defensively in case some environments produce it.
+export const MIME_TO_EXTENSION: Readonly<Record<string, string>> = {
   "image/png": "png",
   "image/jpeg": "jpg",
   "image/jpg": "jpg",
   "image/webp": "webp",
 };
+
+export const SUPPORTED_MIME_TYPES: ReadonlySet<string> = new Set(
+  Object.keys(MIME_TO_EXTENSION),
+);
 
 // Prompt templates
 export const PROMPT_TEMPLATE_VARIABLES = [
