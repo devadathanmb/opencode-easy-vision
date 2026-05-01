@@ -88,6 +88,8 @@ function handleHttpUrl(
 // File Operations
 
 function getExtensionForMime(mime: string): string {
+  // PNG fallback: unknown MIME types are saved as .png so the file is always
+  // openable, even if the extension doesn't perfectly match the content.
   return MIME_TO_EXTENSION[mime.toLowerCase()] ?? "png";
 }
 

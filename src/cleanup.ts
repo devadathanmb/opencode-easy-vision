@@ -4,6 +4,8 @@ import { existsSync } from "node:fs";
 import { getTempDir, getCleanupAfterHours } from "./config.js";
 import type { Logger } from "./types.js";
 
+// Matches only UUID-named image files that this plugin wrote, so we never
+// accidentally delete unrelated files that happen to land in the same directory.
 const PLUGIN_FILE_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
 
@@ -14,6 +16,8 @@ async function tryDeleteIfExpired(
 ): Promise<boolean> {
   try {
     const stats = await stat(filepath);
+    // mtimeMs: writeFile updates mtime, so it reliably tracks when the plugin wrote the file.
+    // birthtime is unreliable on some filesystems (e.g., copying a file preserves the original birthtime).
     if (now - stats.mtimeMs > cutoffMs) {
       await unlink(filepath);
       return true;

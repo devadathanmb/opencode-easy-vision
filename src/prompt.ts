@@ -56,6 +56,8 @@ export function generateInjectionPrompt(
     imageList,
     imageCount: images.length,
     toolName,
+    // When the user pastes an image with no accompanying text, {userText} would be
+    // blank, leaving the model without any instruction. Fall back to a sensible default.
     userText: userText || "(analyze the image)",
   });
 }

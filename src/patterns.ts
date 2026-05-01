@@ -31,6 +31,7 @@ function matchesSinglePattern(pattern: string, model: ModelInfo): boolean {
   const slashIndex = pattern.indexOf("/");
 
   if (slashIndex === -1) {
+    // No slash: ambiguous whether the user meant provider or model — accept either.
     return (
       matchesWildcardPattern(pattern, model.modelID) ||
       matchesWildcardPattern(pattern, model.providerID)

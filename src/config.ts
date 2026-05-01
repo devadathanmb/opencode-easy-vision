@@ -20,7 +20,6 @@ import type { PluginConfig, Logger } from "./types.js";
 let pluginConfig: PluginConfig = {};
 
 // Path Resolution
-
 function getUserConfigPath(): string {
   return join(homedir(), ".config", "opencode", CONFIG_FILENAME);
 }
@@ -38,7 +37,6 @@ function getProjectConfigPathJsonc(directory: string): string {
 }
 
 // File Parsing
-
 function parseModelsArray(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const models = value.filter((m): m is string => typeof m === "string");
@@ -56,6 +54,8 @@ function parsePromptTemplate(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   if (trimmed === "") return undefined;
+  // Reject templates with no recognized variables — without {imageList} or {toolName},
+  // the template can't convey image paths or the tool to call, making it useless.
   if (!PROMPT_TEMPLATE_VARIABLES.some((v) => trimmed.includes(v)))
     return undefined;
   return trimmed;
@@ -104,7 +104,6 @@ async function readConfigFile(
 }
 
 // Example Config Auto-Init
-
 function getExampleConfigPath(): string {
   const thisFile = fileURLToPath(import.meta.url);
   return resolve(dirname(thisFile), "..", EXAMPLE_CONFIG_FILENAME);
@@ -136,7 +135,6 @@ async function createExampleConfigIfMissing(
 }
 
 // Precedence & Merging (project > user > defaults)
-
 type Resolution<T> = { value: T; source: "project" | "user" | "default" };
 
 function selectWithPrecedence<T>(
@@ -175,6 +173,8 @@ export async function loadPluginConfig(
   const projectJson = getProjectConfigPath(directory);
   const projectJsonc = getProjectConfigPathJsonc(directory);
 
+  // Project and user configs resolve in parallel. Within each level, JSONC is preferred
+  // over JSON (.then fallback) so comments are preserved in the winning file.
   const [projectConfig, userConfig] = await Promise.all([
     readConfigFile(projectJsonc, onParseError).then(
       (r) => r ?? readConfigFile(projectJson, onParseError),
@@ -254,7 +254,6 @@ export async function loadPluginConfig(
 }
 
 // Accessors
-
 export function getConfiguredModels(): readonly string[] {
   return pluginConfig.models ?? DEFAULT_MODEL_PATTERNS;
 }

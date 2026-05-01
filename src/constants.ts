@@ -9,6 +9,7 @@ export const EXAMPLE_CONFIG_FILENAME =
 
 // Directories and limits
 export const TEMP_DIR_NAME = "opencode-minimax-vision";
+// Treat tool names longer than this as a misconfiguration — MCP tool names have a defined upper bound.
 export const MAX_TOOL_NAME_LENGTH = 256;
 
 // Defaults

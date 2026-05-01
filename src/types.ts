@@ -9,7 +9,7 @@ export interface PluginConfig {
 export interface SavedImage {
   path: string;
   mime: string;
-  partId: string;
+  partId: string; // ID of the original FilePart, used to remove it from the message after injection
 }
 
 export interface ModelInfo {
@@ -17,6 +17,8 @@ export interface ModelInfo {
   modelID: string;
 }
 
+// Logger writes to the app's structured log (silent to the user).
+// Notifier surfaces visible toast messages for errors the user should act on.
 export type Logger = (msg: string) => void;
 
 export type Notifier = {
