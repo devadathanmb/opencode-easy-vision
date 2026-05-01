@@ -11,7 +11,7 @@ import {
   DEFAULT_IMAGE_ANALYSIS_TOOL,
   DEFAULT_CLEANUP_AFTER_HOURS,
 } from "./constants.js";
-import type { PluginConfig, Logger, Notifier } from "./types.js";
+import type { PluginConfig, Logger } from "./types.js";
 
 let pluginConfig: PluginConfig = {};
 
@@ -109,12 +109,10 @@ function selectWithPrecedence<T>(
 export async function loadPluginConfig(
   directory: string,
   log: Logger,
-  notify: Notifier,
 ): Promise<void> {
   const onParseError = (path: string) =>
-    notify.warn(
-      `Config file has invalid JSON and will be ignored: ${path}`,
-      "Easy Vision",
+    log(
+      `WARN: Config file has invalid JSON and will be ignored: ${path}`,
     );
 
   const userConfig = await readConfigFile(getUserConfigPath(), onParseError);

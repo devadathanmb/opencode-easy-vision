@@ -33,7 +33,14 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         .log({ body: { service: PLUGIN_NAME, level: "warn", message } })
         .catch(() => {});
       client.tui
-        .showToast({ body: { title, message, variant: "warning" } })
+        .showToast({
+          body: {
+            title,
+            message,
+            variant: "warning",
+            duration: 5000,
+          },
+        })
         .catch(() => {});
     },
     error: (message, title) => {
@@ -41,12 +48,19 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         .log({ body: { service: PLUGIN_NAME, level: "error", message } })
         .catch(() => {});
       client.tui
-        .showToast({ body: { title, message, variant: "error" } })
+        .showToast({
+          body: {
+            title,
+            message,
+            variant: "error",
+            duration: 5000,
+          },
+        })
         .catch(() => {});
     },
   };
 
-  await loadPluginConfig(directory, log, notify);
+  await loadPluginConfig(directory, log);
   await cleanupOldTempFiles(log);
   log("Plugin initialized");
 
@@ -64,10 +78,9 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
 
       log("Model matched, checking for images...");
 
-      const hasImages = lastUserMessage.parts.some(isImageFilePart);
-      if (!hasImages) return;
-
-      // Warn about file attachments with unsupported MIME types (e.g. GIF, BMP)
+      // Warn about file attachments with unsupported MIME types (e.g. GIF, BMP).
+      // This must happen before the hasImages early-return so users are notified
+      // even when every attachment is unsupported.
       const unsupportedParts = lastUserMessage.parts.filter(
         isUnsupportedFilePart,
       );
@@ -80,6 +93,9 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
           "Easy Vision",
         );
       }
+
+      const hasImages = lastUserMessage.parts.some(isImageFilePart);
+      if (!hasImages) return;
 
       log("Found images in message, processing...");
 
