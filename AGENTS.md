@@ -103,9 +103,9 @@ interface ModelInfo {
 | `types.ts` | Shared interfaces: `PluginConfig`, `SavedImage`, `ModelInfo`, `Logger`, `Notifier` |
 | `config.ts` | Config loading (JSON + JSONC), parsing, validation, precedence, accessors, and auto-init of example config |
 | `patterns.ts` | Wildcard model pattern matching |
-| `images.ts` | Type guards, URL handlers (`file://`, `data:`, `http(s)://`), file I/O, image extraction |
+| `images.ts` | Image type guard (`isImageFilePart`), URL handlers (`file://`, `data:`, `http(s)://`), file I/O, image extraction |
 | `prompt.ts` | Prompt template rendering and injection prompt generation |
-| `transform.ts` | Message structural modification (find, remove parts, update text) |
+| `transform.ts` | Type guard (`isTextPart`), message structural modification (find, remove parts, update text) |
 | `cleanup.ts` | Temp file deletion on startup |
 | `index.ts` | Plugin entry point — wires everything together, registers the hook |
 
