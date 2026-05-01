@@ -75,12 +75,10 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
       const model = getModelFromMessage(lastUserMessage);
       if (!modelMatchesAnyPattern(model)) return;
 
-      log("Model matched, checking for images...");
-
       const hasImages = lastUserMessage.parts.some(isImageFilePart);
       if (!hasImages) return;
 
-      log("Found images in message, processing...");
+      log("Found images in message, processing");
 
       // Collect all image part IDs up front so failed saves are also removed from the
       // message — otherwise raw data: blobs stay in parts and the model can't use them.
@@ -94,9 +92,9 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         notify,
       );
       if (savedImages.length === 0) {
-        log("No images were successfully saved");
+        log("Failed to process any attached images");
         notify.error(
-          "No images could be saved. Check logs for details.",
+          "Could not process attached images. Check logs for details.",
           "Easy Vision",
         );
         lastUserMessage.parts = removeProcessedImageParts(
@@ -114,7 +112,7 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         );
       }
 
-      log(`Saved ${savedImages.length} image(s), transforming message...`);
+      log(`Saved ${savedImages.length} image(s), injecting tool instructions`);
 
       const existingTextPart = lastUserMessage.parts.find(isTextPart);
       const userText = existingTextPart?.text ?? "";
@@ -132,8 +130,6 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
 
       updateOrCreateTextPart(lastUserMessage, transformedText);
       messages[lastUserIndex] = lastUserMessage;
-
-      log("Successfully injected image path instructions");
     },
   };
 };
