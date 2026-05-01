@@ -76,6 +76,8 @@ interface PluginConfig {
   models?: string[];          // model patterns; defaults to DEFAULT_MODEL_PATTERNS
   imageAnalysisTool?: string; // MCP tool name; defaults to DEFAULT_IMAGE_ANALYSIS_TOOL
   promptTemplate?: string;    // custom injection prompt; must include at least one variable
+  tempDir?: string;           // custom temp directory; defaults to OS temp + opencode-minimax-vision/
+  cleanupAfterHours?: number; // temp file cleanup threshold; defaults to 24
 }
 
 interface SavedImage {
@@ -96,7 +98,7 @@ interface ModelInfo {
 |------|----------------|
 | `constants.ts` | All compile-time constants (patterns, MIME types, defaults) |
 | `types.ts` | Shared interfaces: `PluginConfig`, `SavedImage`, `ModelInfo`, `Logger`, `Notifier` |
-| `config.ts` | Config loading, parsing, validation, precedence, and accessors |
+| `config.ts` | Config loading (JSON + JSONC), parsing, validation, precedence, accessors, and auto-init of example config |
 | `patterns.ts` | Wildcard model pattern matching |
 | `images.ts` | Type guards, URL handlers (`file://`, `data:`, `http(s)://`), file I/O, image extraction |
 | `prompt.ts` | Prompt template rendering and injection prompt generation |
@@ -109,39 +111,16 @@ interface ModelInfo {
 
 ## Configuration
 
-Config is read from JSON files (not `opencode.json`), with project-level taking precedence over user-level.
+Config is read from `.json` or `.jsonc` files (not `opencode.json`), with project-level taking precedence over user-level.
 
-| Priority | Path |
-|----------|------|
-| 1 (highest) | `.opencode/opencode-minimax-easy-vision.json` |
-| 2 | `~/.config/opencode/opencode-minimax-easy-vision.json` |
+| Priority | Level | Path |
+|----------|-------|------|
+| 1 (highest) | Project | `.opencode/opencode-minimax-easy-vision.json` or `.jsonc` |
+| 2 | User | `~/.config/opencode/opencode-minimax-easy-vision.json` or `.jsonc` |
 
-```json
-{
-  "models": ["minimax/*", "z-ai/*", "*/minimax-m2.5"],
-  "imageAnalysisTool": "mcp_minimax_understand_image",
-  "promptTemplate": "...",
-  "tempDir": "/custom/tmp/path",
-  "cleanupAfterHours": 48
-}
-```
+If no user-level config exists, the plugin auto-creates an example `.jsonc` file at `~/.config/opencode/opencode-minimax-easy-vision.jsonc` on first load.
 
-**Defaults** (when no config provided):
-- `models`: all MiniMax provider variants (see `DEFAULT_MODEL_PATTERNS` in `src/constants.ts`)
-- `imageAnalysisTool`: `"mcp_minimax_understand_image"`
-- `promptTemplate`: built-in template (hardcoded in `generateInjectionPrompt` in `src/prompt.ts`)
-- `tempDir`: OS temp dir + `opencode-minimax-vision/` subdirectory
-- `cleanupAfterHours`: `24` (files older than this are deleted at plugin startup)
-
-### Model Pattern Matching
-Format: `provider/model` with wildcard support:
-- `*` — all models
-- `minimax/*` — all models from provider
-- `*/minimax-m2.5` — specific model from any provider
-- `z-ai/glm-4.7` — exact match
-
-
-No-slash patterns match against both provider and model ID.
+See [CONFIGURATION.md](./CONFIGURATION.md) for the full config reference, including all options, model pattern syntax, prompt template variables, and example configs.
 
 ## Notes for Agents
 
