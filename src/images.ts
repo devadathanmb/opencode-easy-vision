@@ -19,12 +19,6 @@ export function isImageFilePart(part: Part): part is FilePart {
   return SUPPORTED_MIME_TYPES.has(mime);
 }
 
-export function isTextPart(
-  part: Part,
-): part is import("@opencode-ai/sdk").TextPart {
-  return part.type === "text";
-}
-
 // URL Handlers
 //
 // Images can arrive via different URL schemes:

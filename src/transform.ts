@@ -1,7 +1,10 @@
 import type { Message, Part, TextPart } from "@opencode-ai/sdk";
 import { randomUUID } from "node:crypto";
 import type { ModelInfo } from "./types.js";
-import { isTextPart } from "./images.js";
+
+export function isTextPart(part: Part): part is TextPart {
+  return part.type === "text";
+}
 
 // The transformation flow:
 // 1. Find the last user message (most recent request)

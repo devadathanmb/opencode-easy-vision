@@ -2,13 +2,10 @@ import type { Plugin } from "@opencode-ai/plugin";
 import { PLUGIN_NAME } from "./constants.js";
 import { loadPluginConfig, getImageAnalysisTool } from "./config.js";
 import { modelMatchesAnyPattern } from "./patterns.js";
-import {
-  isImageFilePart,
-  isTextPart,
-  extractImagesFromParts,
-} from "./images.js";
+import { isImageFilePart, extractImagesFromParts } from "./images.js";
 import { generateInjectionPrompt } from "./prompt.js";
 import {
+  isTextPart,
   findLastUserMessage,
   getModelFromMessage,
   removeProcessedImageParts,
