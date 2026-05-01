@@ -7,8 +7,8 @@ An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models
 * [The Problem](#the-problem)
 * [Demo](#demo)
 * [Setup](#setup)
-  * [1. Configure an MCP image analysis tool](#1-configure-an-mcp-image-analysis-tool)
-  * [2. Install the plugin](#2-install-the-plugin)
+  * [For Humans](#for-humans)
+  * [For LLM Agents](#for-llm-agents)
 * [Usage](#usage)
 * [Configuration](#configuration)
 * [Supported Image Formats](#supported-image-formats)
@@ -36,7 +36,9 @@ https://github.com/user-attachments/assets/826f90ea-913f-427e-ace8-0b711302c497
 
 ## Setup
 
-### 1. Configure an MCP image analysis tool
+### For Humans
+
+#### 1. Configure an MCP image analysis tool
 
 The plugin works with any MCP server that can read an image and return its analysis as text. Add one to your `opencode.json`.
 
@@ -82,7 +84,7 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 > [!NOTE]
 > Any MCP server with an image analysis tool will work — the above are just examples. For a different tool, point the plugin to it using `imageAnalysisTool` — see [Configuration](#configuration).
 
-### 2. Install the plugin
+#### 2. Install the plugin
 
 **With the OpenCode CLI (v1.3.4+):**
 
@@ -105,7 +107,11 @@ opencode plugin opencode-minimax-easy-vision
 }
 ```
 
-**Or let your agent do it** — paste this into OpenCode:
+---
+
+### For LLM Agents
+
+**Paste this into OpenCode and let your agent handle the rest:**
 
 ```
 Set up opencode-minimax-easy-vision by following https://raw.githubusercontent.com/devadathanmb/opencode-minimax-easy-vision/main/README.md
