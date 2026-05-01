@@ -13,6 +13,7 @@ An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models
 * [Configuration](#configuration)
 * [Supported Image Formats](#supported-image-formats)
 * [Troubleshooting](#troubleshooting)
+* [Uninstallation](#uninstallation)
 * [Contributing](#contributing)
 * [License](#license)
 * [References](#references)
@@ -165,6 +166,16 @@ rm -rf ~/.cache/opencode/packages/opencode-minimax-easy-vision@latest
 **Plugin not activating?**
 
 By default the plugin only fires for MiniMax provider models (IDs matching `minimax/*`, `minimax-cn/*`, etc.). It will not activate for a MiniMax model accessed through OpenRouter or any other provider. To use the plugin with a different model or provider, add the model's ID pattern to `models` in your config — see [CONFIGURATION.md](./CONFIGURATION.md).
+
+## Uninstallation
+
+1. Remove `opencode-minimax-easy-vision` from the `plugin` array in your `opencode.json` file.
+
+2. Delete the config files the plugin created:
+
+```bash
+rm -f ~/.config/opencode/opencode-minimax-easy-vision.{json,jsonc}
+```
 
 ## Contributing
 
