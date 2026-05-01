@@ -23,37 +23,23 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
       .catch(() => {});
   };
 
+  function makeNotifyMethod(
+    level: "warn" | "error",
+    variant: "warning" | "error",
+  ) {
+    return (message: string, title?: string) => {
+      client.app
+        .log({ body: { service: PLUGIN_NAME, level, message } })
+        .catch(() => {});
+      client.tui
+        .showToast({ body: { title, message, variant, duration: 5000 } })
+        .catch(() => {});
+    };
+  }
+
   const notify: Notifier = {
-    warn: (message, title) => {
-      client.app
-        .log({ body: { service: PLUGIN_NAME, level: "warn", message } })
-        .catch(() => {});
-      client.tui
-        .showToast({
-          body: {
-            title,
-            message,
-            variant: "warning",
-            duration: 5000,
-          },
-        })
-        .catch(() => {});
-    },
-    error: (message, title) => {
-      client.app
-        .log({ body: { service: PLUGIN_NAME, level: "error", message } })
-        .catch(() => {});
-      client.tui
-        .showToast({
-          body: {
-            title,
-            message,
-            variant: "error",
-            duration: 5000,
-          },
-        })
-        .catch(() => {});
-    },
+    warn: makeNotifyMethod("warn", "warning"),
+    error: makeNotifyMethod("error", "error"),
   };
 
   await loadPluginConfig(directory, log);
