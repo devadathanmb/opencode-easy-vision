@@ -175,10 +175,6 @@ export async function loadPluginConfig(
   const projectJson = getProjectConfigPath(directory);
   const projectJsonc = getProjectConfigPathJsonc(directory);
 
-  // Check existence before reading so we don't duplicate the existsSync calls
-  // that readConfigFile already performs internally.
-  const userConfigFileExists = existsSync(userJsonc) || existsSync(userJson);
-
   const [projectConfig, userConfig] = await Promise.all([
     readConfigFile(projectJsonc, onParseError).then(
       (r) => r ?? readConfigFile(projectJson, onParseError),
@@ -188,7 +184,9 @@ export async function loadPluginConfig(
     ),
   ]);
 
-  if (!userConfigFileExists) {
+  // readConfigFile returns null for missing or malformed files — create an
+  // example config only when no valid user config was found.
+  if (userConfig === null) {
     await createExampleConfigIfMissing(userJsonc, log);
   }
 
