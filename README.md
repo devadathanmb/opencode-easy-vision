@@ -32,6 +32,11 @@ Many models — open-weight ones especially — have no vision capability. They 
 
 This plugin automates the entire workaround. It intercepts pasted images, saves them to disk automatically, and injects the right instructions for the model to call the MCP tool with the correct path. You paste, you ask — the plugin handles the rest.
 
+| Without the plugin | With the plugin |
+|:-:|:-:|
+| <img src="https://github.com/user-attachments/assets/d0f65d61-8384-4eea-9013-7325b3bf200a" width="100%"> | <img src="https://github.com/user-attachments/assets/c2b54c5b-f14a-40ae-96ec-4e3ced8bde2e" width="100%"> |
+| The image is silently ignored by the model. | The model analyzes the attached image correctly before answering. |
+
 ## Setup
 
 ### 1. Configure an MCP image analysis tool
