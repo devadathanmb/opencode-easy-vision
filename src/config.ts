@@ -137,18 +137,29 @@ async function createExampleConfigIfMissing(
 
 // Precedence & Merging (project > user > defaults)
 
+type Resolution<T> = { value: T; source: "project" | "user" | "default" };
+
 function selectWithPrecedence<T>(
   projectValue: T | undefined,
   userValue: T | undefined,
-  defaultValue: T,
-): { value: T; source: "project" | "user" | "default" } {
-  if (projectValue !== undefined) {
-    return { value: projectValue, source: "project" };
+): Resolution<T | undefined> {
+  if (projectValue !== undefined) return { value: projectValue, source: "project" };
+  if (userValue !== undefined) return { value: userValue, source: "user" };
+  return { value: undefined, source: "default" };
+}
+
+function logResolution<T>(
+  fieldName: string,
+  resolution: Resolution<T | undefined>,
+  valueStr: string,
+  defaultMsg: string | null,
+  log: Logger,
+): void {
+  if (resolution.source !== "default") {
+    log(`Using ${fieldName} from ${resolution.source} config: ${valueStr}`);
+  } else if (defaultMsg !== null) {
+    log(defaultMsg);
   }
-  if (userValue !== undefined) {
-    return { value: userValue, source: "user" };
-  }
-  return { value: defaultValue, source: "default" };
 }
 
 export async function loadPluginConfig(
@@ -163,88 +174,77 @@ export async function loadPluginConfig(
   const projectJson = getProjectConfigPath(directory);
   const projectJsonc = getProjectConfigPathJsonc(directory);
 
-  const projectConfig =
-    (await readConfigFile(projectJsonc, onParseError)) ??
-    (await readConfigFile(projectJson, onParseError));
-  const userConfig =
-    (await readConfigFile(userJsonc, onParseError)) ??
-    (await readConfigFile(userJson, onParseError));
-
+  // Check existence before reading so we don't duplicate the existsSync calls
+  // that readConfigFile already performs internally.
   const userConfigFileExists = existsSync(userJsonc) || existsSync(userJson);
+
+  const [projectConfig, userConfig] = await Promise.all([
+    readConfigFile(projectJsonc, onParseError).then(
+      (r) => r ?? readConfigFile(projectJson, onParseError),
+    ),
+    readConfigFile(userJsonc, onParseError).then(
+      (r) => r ?? readConfigFile(userJson, onParseError),
+    ),
+  ]);
 
   if (!userConfigFileExists) {
     await createExampleConfigIfMissing(userJsonc, log);
   }
 
-  const modelsResult = selectWithPrecedence(
-    projectConfig?.models,
-    userConfig?.models,
-    undefined,
+  const models = selectWithPrecedence(projectConfig?.models, userConfig?.models);
+  logResolution(
+    "models",
+    models,
+    models.value?.join(", ") ?? "",
+    `Using default models: ${DEFAULT_MODEL_PATTERNS.join(", ")}`,
+    log,
   );
-  if (modelsResult.source !== "default") {
-    log(
-      `Loaded models from ${modelsResult.source} config: ${modelsResult.value?.join(", ")}`,
-    );
-  } else {
-    log(`Using default models: ${DEFAULT_MODEL_PATTERNS.join(", ")}`);
-  }
 
-  const toolResult = selectWithPrecedence(
+  const imageAnalysisTool = selectWithPrecedence(
     projectConfig?.imageAnalysisTool,
     userConfig?.imageAnalysisTool,
-    undefined,
   );
-  if (toolResult.source !== "default") {
-    log(
-      `Using imageAnalysisTool from ${toolResult.source} config: ${toolResult.value}`,
-    );
-  } else {
-    log(`Using default imageAnalysisTool: ${DEFAULT_IMAGE_ANALYSIS_TOOL}`);
-  }
+  logResolution(
+    "imageAnalysisTool",
+    imageAnalysisTool,
+    imageAnalysisTool.value ?? "",
+    `Using default imageAnalysisTool: ${DEFAULT_IMAGE_ANALYSIS_TOOL}`,
+    log,
+  );
 
-  const templateResult = selectWithPrecedence(
+  const promptTemplate = selectWithPrecedence(
     projectConfig?.promptTemplate,
     userConfig?.promptTemplate,
-    undefined,
   );
-  if (templateResult.source !== "default") {
-    log(
-      `Using promptTemplate from ${templateResult.source} config (${templateResult.value?.length ?? 0} chars)`,
-    );
-  } else {
-    log("Using default (hardcoded) injection prompt template");
-  }
-
-  const tempDirResult = selectWithPrecedence(
-    projectConfig?.tempDir,
-    userConfig?.tempDir,
-    undefined,
+  logResolution(
+    "promptTemplate",
+    promptTemplate,
+    `${promptTemplate.value?.length ?? 0} chars`,
+    "Using default (hardcoded) injection prompt template",
+    log,
   );
-  if (tempDirResult.source !== "default") {
-    log(
-      `Using tempDir from ${tempDirResult.source} config: ${tempDirResult.value}`,
-    );
-  }
 
-  const cleanupResult = selectWithPrecedence(
+  const tempDir = selectWithPrecedence(projectConfig?.tempDir, userConfig?.tempDir);
+  logResolution("tempDir", tempDir, tempDir.value ?? "", null, log);
+
+  const cleanupAfterHours = selectWithPrecedence(
     projectConfig?.cleanupAfterHours,
     userConfig?.cleanupAfterHours,
-    undefined,
   );
-  if (cleanupResult.source !== "default") {
-    log(
-      `Using cleanupAfterHours from ${cleanupResult.source} config: ${cleanupResult.value}`,
-    );
-  } else {
-    log(`Using default cleanupAfterHours: ${DEFAULT_CLEANUP_AFTER_HOURS}`);
-  }
+  logResolution(
+    "cleanupAfterHours",
+    cleanupAfterHours,
+    String(cleanupAfterHours.value),
+    `Using default cleanupAfterHours: ${DEFAULT_CLEANUP_AFTER_HOURS}`,
+    log,
+  );
 
   pluginConfig = {
-    models: modelsResult.value,
-    imageAnalysisTool: toolResult.value,
-    promptTemplate: templateResult.value,
-    tempDir: tempDirResult.value,
-    cleanupAfterHours: cleanupResult.value,
+    models: models.value,
+    imageAnalysisTool: imageAnalysisTool.value,
+    promptTemplate: promptTemplate.value,
+    tempDir: tempDir.value,
+    cleanupAfterHours: cleanupAfterHours.value,
   };
 }
 
