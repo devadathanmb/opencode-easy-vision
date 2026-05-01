@@ -28,7 +28,7 @@ This plugin automates the entire workaround. It intercepts pasted images, saves 
 
 | Without the plugin | With the plugin |
 |:-:|:-:|
-| <img src="https://github.com/user-attachments/assets/d0f65d61-8384-4eea-9013-7325b3bf200a" width="100%"> | <img src="https://github.com/user-attachments/assets/c2b54c5b-f14a-40ae-96ec-4e3ced8bde2e" width="100%"> |
+| <img width="100%" alt="Without plugin screenshot" src="https://github.com/user-attachments/assets/eb5c76ce-e1a6-4ad0-aa51-58ce5e8efd8f" /> | <img width="100%" alt="With plugin screenshot" src="https://github.com/user-attachments/assets/b5bcaac4-8ac8-48eb-90cb-59630c26f4e1" /> |
 | The image is silently ignored by the model. | The model analyzes the attached image correctly before answering. |
 
 https://github.com/user-attachments/assets/df396c6c-6fa8-46b8-8984-c003ecf1c12c
