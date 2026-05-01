@@ -1,3 +1,7 @@
+import {
+  DEFAULT_PROMPT_TEMPLATE_MULTIPLE,
+  DEFAULT_PROMPT_TEMPLATE_SINGLE,
+} from "./constants.js";
 import { getPromptTemplate } from "./config.js";
 import type { SavedImage } from "./types.js";
 
@@ -44,14 +48,14 @@ export function generateInjectionPrompt(
   }
 
   const isSingle = images.length === 1;
-  const imageCountText = isSingle ? "an image" : `${images.length} images`;
-  const imagePlural = isSingle ? "image is" : "images are";
-  const analyzeText = isSingle ? "this image" : "each image";
+  const template = isSingle
+    ? DEFAULT_PROMPT_TEMPLATE_SINGLE
+    : DEFAULT_PROMPT_TEMPLATE_MULTIPLE;
 
-  return `The user has shared ${imageCountText}. The ${imagePlural} saved at:
-${imageList}
-
-Use the \`${toolName}\` tool to analyze ${analyzeText}.
-
-User's request: ${userText || "(analyze the image)"}`;
+  return applyPromptTemplate(template, {
+    imageList,
+    imageCount: images.length,
+    toolName,
+    userText: userText || "(analyze the image)",
+  });
 }
