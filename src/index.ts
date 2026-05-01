@@ -68,6 +68,11 @@ interface ModelInfo {
 
 type Logger = (msg: string) => void;
 
+type Notifier = {
+  warn: (message: string, title?: string) => void;
+  error: (message: string, title?: string) => void;
+};
+
 // Plugin State
 
 let pluginConfig: PluginConfig = {};
@@ -119,6 +124,7 @@ function parseConfigObject(raw: unknown): PluginConfig {
 
 async function readConfigFile(
   configPath: string,
+  onParseError?: (path: string) => void,
 ): Promise<PluginConfig | null> {
   if (!existsSync(configPath)) return null;
 
@@ -127,6 +133,7 @@ async function readConfigFile(
     const parsed = JSON.parse(content) as unknown;
     return parseConfigObject(parsed);
   } catch {
+    onParseError?.(configPath);
     return null;
   }
 }
@@ -147,9 +154,22 @@ function selectWithPrecedence<T>(
   return { value: defaultValue, source: "default" };
 }
 
-async function loadPluginConfig(directory: string, log: Logger): Promise<void> {
-  const userConfig = await readConfigFile(getUserConfigPath());
-  const projectConfig = await readConfigFile(getProjectConfigPath(directory));
+async function loadPluginConfig(
+  directory: string,
+  log: Logger,
+  notify: Notifier,
+): Promise<void> {
+  const onParseError = (path: string) =>
+    notify.warn(
+      `Config file has invalid JSON and will be ignored: ${path}`,
+      "Easy Vision",
+    );
+
+  const userConfig = await readConfigFile(getUserConfigPath(), onParseError);
+  const projectConfig = await readConfigFile(
+    getProjectConfigPath(directory),
+    onParseError,
+  );
 
   // Resolve models with precedence
   const modelsResult = selectWithPrecedence(
@@ -289,6 +309,12 @@ function isTextPart(part: Part): part is TextPart {
   return part.type === "text";
 }
 
+function isUnsupportedFilePart(part: Part): part is FilePart {
+  if (part.type !== "file") return false;
+  const mime = (part as FilePart).mime?.toLowerCase() ?? "";
+  return !SUPPORTED_MIME_TYPES.has(mime);
+}
+
 // Image Processing: URL Handlers
 //
 // Images can arrive via different URL schemes:
@@ -324,6 +350,7 @@ async function handleDataUrl(
   url: string,
   filePart: FilePart,
   log: Logger,
+  notify: Notifier,
 ): Promise<SavedImage | null> {
   // Pasted clipboard images arrive as base64 data URLs.
   // Decode and save to a temp file so the MCP tool can read it.
@@ -338,9 +365,9 @@ async function handleDataUrl(
     log(`Saved image to: ${savedPath}`);
     return { path: savedPath, mime: parsed.mime, partId: filePart.id };
   } catch (err) {
-    log(
-      `Failed to save image: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    const msg = err instanceof Error ? err.message : String(err);
+    log(`Failed to save image: ${msg}`);
+    notify.error(`Could not save image to disk: ${msg}`, "Easy Vision");
     return null;
   }
 }
@@ -381,6 +408,7 @@ async function saveImageToTemp(data: Buffer, mime: string): Promise<string> {
 async function processImagePart(
   filePart: FilePart,
   log: Logger,
+  notify: Notifier,
 ): Promise<SavedImage | null> {
   const url = filePart.url;
 
@@ -394,7 +422,7 @@ async function processImagePart(
   }
 
   if (url.startsWith("data:")) {
-    return handleDataUrl(url, filePart, log);
+    return handleDataUrl(url, filePart, log, notify);
   }
 
   if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -408,13 +436,14 @@ async function processImagePart(
 async function extractImagesFromParts(
   parts: Part[],
   log: Logger,
+  notify: Notifier,
 ): Promise<SavedImage[]> {
   const savedImages: SavedImage[] = [];
 
   for (const part of parts) {
     if (!isImageFilePart(part)) continue;
 
-    const result = await processImagePart(part, log);
+    const result = await processImagePart(part, log, notify);
     if (result) {
       savedImages.push(result);
     }
@@ -550,7 +579,26 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
       .catch(() => {});
   };
 
-  await loadPluginConfig(directory, log);
+  const notify: Notifier = {
+    warn: (message, title) => {
+      client.app
+        .log({ body: { service: PLUGIN_NAME, level: "warn", message } })
+        .catch(() => {});
+      client.tui
+        .showToast({ body: { title, message, variant: "warning" } })
+        .catch(() => {});
+    },
+    error: (message, title) => {
+      client.app
+        .log({ body: { service: PLUGIN_NAME, level: "error", message } })
+        .catch(() => {});
+      client.tui
+        .showToast({ body: { title, message, variant: "error" } })
+        .catch(() => {});
+    },
+  };
+
+  await loadPluginConfig(directory, log, notify);
   log("Plugin initialized");
 
   return {
@@ -570,14 +618,33 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
       const hasImages = lastUserMessage.parts.some(isImageFilePart);
       if (!hasImages) return;
 
+      // Warn about file attachments with unsupported MIME types (e.g. GIF, BMP)
+      const unsupportedParts = lastUserMessage.parts.filter(
+        isUnsupportedFilePart,
+      );
+      if (unsupportedParts.length > 0) {
+        const mimes = [
+          ...new Set(unsupportedParts.map((p) => p.mime ?? "unknown")),
+        ].join(", ");
+        notify.warn(
+          `${unsupportedParts.length} attached file(s) have unsupported formats and will be skipped (${mimes}). Supported: PNG, JPEG, WebP.`,
+          "Easy Vision",
+        );
+      }
+
       log("Found images in message, processing...");
 
       const savedImages = await extractImagesFromParts(
         lastUserMessage.parts,
         log,
+        notify,
       );
       if (savedImages.length === 0) {
         log("No images were successfully saved");
+        notify.error(
+          "No images could be saved. Check logs for details.",
+          "Easy Vision",
+        );
         return;
       }
 
