@@ -7,7 +7,9 @@
   "type": "module",
   "files": [
     "dist",
-    "opencode-minimax-easy-vision.example.jsonc"
+    "opencode-minimax-easy-vision.example.jsonc",
+    "AGENT_SETUP.md",
+    "CONFIGURATION.md"
   ],
   "scripts": {
     "build": "tsc",

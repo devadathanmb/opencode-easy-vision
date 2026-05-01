@@ -114,143 +114,19 @@ opencode plugin opencode-minimax-easy-vision
 **Paste this into OpenCode and let your agent handle the rest:**
 
 ```
-Set up opencode-minimax-easy-vision by following https://raw.githubusercontent.com/devadathanmb/opencode-minimax-easy-vision/main/README.md
+Set up opencode-minimax-easy-vision by following https://raw.githubusercontent.com/devadathanmb/opencode-minimax-easy-vision/main/AGENT_SETUP.md
 ```
 
 <details>
-<summary><b>For LLM Agents</b></summary>
+<summary><b>What the agent will do</b></summary>
 
-Set up this plugin interactively by asking the user the questions below in order. Use their answers to build the correct configuration, then apply it.
+The agent follows the instructions in [AGENT_SETUP.md](./AGENT_SETUP.md). It will:
 
-> **Before modifying any file:** check whether it already exists and whether the relevant block or key is already present. If it is, update it in place rather than replacing the whole file.
-
----
-
-### Question 1 — Which MCP image analysis tool?
-
-Ask the user:
-
-> Which MCP image analysis tool would you like to use for image analysis?
-> 1. **MiniMax Coding Plan MCP** — official MiniMax tool
-> 2. **openrouter-image-mcp** — routes through OpenRouter, includes free vision models
-> 3. **Something else** — I already have one, or I want to use a different tool
-
-**If they choose 1 (MiniMax Coding Plan MCP):**
-
-Check whether `~/.config/opencode/opencode.json` already has an `mcp` block. If it does, add the `MiniMax` entry to the existing block. If not, create the block.
-
-Ask for their MiniMax API key — they can get one at https://platform.minimax.io.
-
-```json
-"MiniMax": {
-  "type": "local",
-  "command": ["uvx", "minimax-coding-plan-mcp"],
-  "environment": {
-    "MINIMAX_API_KEY": "<their key>",
-    "MINIMAX_API_HOST": "https://api.minimax.io"
-  }
-}
-```
-
-The tool name this server exposes is `mcp_minimax_understand_image` — note this for Question 3.
-
-**If they choose 2 (openrouter-image-mcp):**
-
-Check whether `~/.config/opencode/opencode.json` already has an `mcp` block. If it does, add the `openrouter_image` entry to the existing block. If not, create the block.
-
-Ask for their OpenRouter API key — they can get one at https://openrouter.ai/keys. Ask which vision model they want to use; if they're unsure, `nvidia/nemotron-nano-12b-v2-vl:free` is free and requires no credits.
-
-```json
-"openrouter_image": {
-  "type": "local",
-  "command": ["npx", "openrouter-image-mcp"],
-  "environment": {
-    "OPENROUTER_API_KEY": "<their key>",
-    "OPENROUTER_MODEL": "nvidia/nemotron-nano-12b-v2-vl:free"
-  }
-}
-```
-
-Ask the user what tool name this MCP server exposes (check its README or run `opencode -c` after restarting) — note it for Question 3.
-
-**If they choose 3 (something else):**
-
-Ask the user to describe the tool or provide its name/repo. Search for its setup documentation. Then:
-- Help them add the correct `mcp` entry to `~/.config/opencode/opencode.json`, checking first whether the block already exists
-- Ask the user what tool name the server exposes, or help them find it — note it for Question 3
-
----
-
-### Question 2 — Which models should the plugin activate for?
-
-Ask the user:
-
-> Which models should this plugin activate for?
-> 1. **MiniMax provider models only** (default — model IDs like `minimax/text-01`, `minimax-cn/*`, etc. where MiniMax is the direct provider in OpenCode)
-> 2. **All models**
-> 3. **Specific model(s)** — I'll tell you which ones
-
-> **Note:** The default does NOT cover MiniMax models accessed through a third-party provider. For example, if the user is calling a MiniMax model via OpenRouter, they need to choose option 2 or 3 and provide the OpenRouter model ID pattern.
-
-**If they choose 1:** No plugin config file is needed — this is the default. Skip to Step 3.
-
-**If they choose 2:**
-
-Check whether `~/.config/opencode/opencode-minimax-easy-vision.jsonc` already exists. If it does, update the `models` key. If not, create it:
-
-```jsonc
-{
-  "models": ["*"]
-}
-```
-
-**If they choose 3:** Ask which model IDs or patterns. Check whether the config file already exists and update or create accordingly:
-
-```jsonc
-{
-  // Each entry is a glob matched against the full model ID (e.g. "openai/gpt-4o", "openrouter/minimax-text-01")
-  "models": ["*their-model*"]
-}
-```
-
-See https://raw.githubusercontent.com/devadathanmb/opencode-minimax-easy-vision/main/CONFIGURATION.md for the full config reference and pattern syntax.
-
----
-
-### Question 3 — MCP tool name
-
-If the tool name noted in Question 1 is anything other than `mcp_minimax_understand_image` (the built-in default), add `imageAnalysisTool` to the plugin config file. Check whether `~/.config/opencode/opencode-minimax-easy-vision.jsonc` already exists and update or create accordingly:
-
-```jsonc
-{
-  "imageAnalysisTool": "<tool name from Question 1>"
-}
-```
-
-If the tool name is `mcp_minimax_understand_image`, skip this step.
-
----
-
-### Step 3 — Add the plugin
-
-Check whether `~/.config/opencode/opencode.json` already has a `plugin` array. If it does and `"opencode-minimax-easy-vision"` is already in it, skip this step. Otherwise add it:
-
-```json
-{
-  "plugin": ["opencode-minimax-easy-vision"]
-}
-```
-
----
-
-### Step 4 — Restart and verify
-
-Tell the user to restart OpenCode. Then ask them to paste an image (`Cmd+V` / `Ctrl+V`) into the chat with a configured model selected and send a message. The model should call the MCP image tool and return an analysis rather than ignoring the image.
-
-If it doesn't work, check:
-1. Is the tool name in `imageAnalysisTool` correct? Run `opencode -c` and look for it in the tool list.
-2. Does the model ID match the configured `models` pattern? Remember: OpenRouter-served models won't match `minimax/*` even if the underlying model is from MiniMax.
-3. Is the API key set correctly in the MCP environment block?
+1. Pre-fetch your existing config and the full configuration reference before asking anything
+2. Ask which MCP image analysis tool you want (MiniMax, OpenRouter, or something else) and collect the relevant API key
+3. Ask which models the plugin should activate for
+4. Apply all changes — updating existing files in place rather than replacing them
+5. Walk you through verifying the setup after a restart
 
 </details>
 
