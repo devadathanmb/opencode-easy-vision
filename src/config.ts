@@ -94,7 +94,7 @@ async function readConfigFile(
 
   try {
     const content = await readFile(configPath, "utf-8");
-    const stripped = stripJsonComments(content);
+    const stripped = stripJsonComments(content, { trailingCommas: true });
     const parsed = JSON.parse(stripped) as unknown;
     return parseConfigObject(parsed);
   } catch {

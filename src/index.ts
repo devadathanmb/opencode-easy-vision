@@ -4,7 +4,6 @@ import { loadPluginConfig, getImageAnalysisTool } from "./config.js";
 import { modelMatchesAnyPattern } from "./patterns.js";
 import {
   isImageFilePart,
-  isUnsupportedFilePart,
   isTextPart,
   extractImagesFromParts,
 } from "./images.js";
@@ -78,22 +77,6 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
 
       log("Model matched, checking for images...");
 
-      // Warn about file attachments with unsupported MIME types (e.g. GIF, BMP).
-      // This must happen before the hasImages early-return so users are notified
-      // even when every attachment is unsupported.
-      const unsupportedParts = lastUserMessage.parts.filter(
-        isUnsupportedFilePart,
-      );
-      if (unsupportedParts.length > 0) {
-        const mimes = [
-          ...new Set(unsupportedParts.map((p) => p.mime ?? "unknown")),
-        ].join(", ");
-        notify.warn(
-          `${unsupportedParts.length} attached file(s) have unsupported formats and will be skipped (${mimes}). Supported: PNG, JPEG, WebP.`,
-          "Easy Vision",
-        );
-      }
-
       const hasImages = lastUserMessage.parts.some(isImageFilePart);
       if (!hasImages) return;
 
@@ -122,6 +105,13 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         );
         messages[lastUserIndex] = lastUserMessage;
         return;
+      }
+
+      if (savedImages.length < allImagePartIds.size) {
+        notify.warn(
+          `${savedImages.length} of ${allImagePartIds.size} image(s) were processed successfully. Some images could not be saved.`,
+          "Easy Vision",
+        );
       }
 
       log(`Saved ${savedImages.length} image(s), transforming message...`);

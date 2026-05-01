@@ -2,6 +2,7 @@ import type { Part, FilePart } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { SUPPORTED_MIME_TYPES, MIME_TO_EXTENSION } from "./constants.js";
 import { getTempDir } from "./config.js";
 import type { SavedImage, Logger, Notifier } from "./types.js";
@@ -22,12 +23,6 @@ export function isTextPart(part: Part): part is import("@opencode-ai/sdk").TextP
   return part.type === "text";
 }
 
-export function isUnsupportedFilePart(part: Part): part is FilePart {
-  if (part.type !== "file") return false;
-  const mime = (part as FilePart).mime?.toLowerCase() ?? "";
-  return !SUPPORTED_MIME_TYPES.has(mime);
-}
-
 // URL Handlers
 //
 // Images can arrive via different URL schemes:
@@ -40,7 +35,7 @@ function handleFileUrl(
   filePart: FilePart,
   log: Logger,
 ): SavedImage {
-  const localPath = url.replace("file://", "");
+  const localPath = fileURLToPath(url);
   log(`Image already on disk: ${localPath}`);
   return { path: localPath, mime: filePart.mime, partId: filePart.id };
 }

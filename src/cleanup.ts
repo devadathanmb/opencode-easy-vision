@@ -4,6 +4,8 @@ import { existsSync } from "node:fs";
 import { getTempDir, getCleanupAfterHours } from "./config.js";
 import type { Logger } from "./types.js";
 
+const PLUGIN_FILE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+
 export async function cleanupOldTempFiles(log: Logger): Promise<void> {
   const dir = getTempDir();
   if (!existsSync(dir)) return;
@@ -15,6 +17,7 @@ export async function cleanupOldTempFiles(log: Logger): Promise<void> {
   try {
     const entries = await readdir(dir);
     for (const entry of entries) {
+      if (!PLUGIN_FILE_PATTERN.test(entry)) continue;
       const filepath = join(dir, entry);
       try {
         const stats = await stat(filepath);
