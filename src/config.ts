@@ -107,7 +107,7 @@ async function readConfigFile(
 
 function getExampleConfigPath(): string {
   const thisFile = fileURLToPath(import.meta.url);
-    return resolve(dirname(thisFile), "..", EXAMPLE_CONFIG_FILENAME);
+  return resolve(dirname(thisFile), "..", EXAMPLE_CONFIG_FILENAME);
 }
 
 async function createExampleConfigIfMissing(
@@ -156,9 +156,7 @@ export async function loadPluginConfig(
   log: Logger,
 ): Promise<void> {
   const onParseError = (path: string) =>
-    log(
-      `WARN: Config file has invalid JSON and will be ignored: ${path}`,
-    );
+    log(`WARN: Config file has invalid JSON and will be ignored: ${path}`);
 
   const userJson = getUserConfigPath();
   const userJsonc = getUserConfigPathJsonc();
@@ -172,8 +170,7 @@ export async function loadPluginConfig(
     (await readConfigFile(userJsonc, onParseError)) ??
     (await readConfigFile(userJson, onParseError));
 
-  const userConfigFileExists =
-    existsSync(userJsonc) || existsSync(userJson);
+  const userConfigFileExists = existsSync(userJsonc) || existsSync(userJson);
 
   if (!userConfigFileExists) {
     await createExampleConfigIfMissing(userJsonc, log);
