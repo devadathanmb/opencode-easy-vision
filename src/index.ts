@@ -2,7 +2,14 @@ import type { Plugin } from "@opencode-ai/plugin";
 import type { Message, Part, FilePart, TextPart } from "@opencode-ai/sdk";
 import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
-import { mkdir, writeFile, readFile } from "node:fs/promises";
+import {
+  mkdir,
+  writeFile,
+  readFile,
+  readdir,
+  stat,
+  unlink,
+} from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 
@@ -32,6 +39,7 @@ const DEFAULT_MODEL_PATTERNS: readonly string[] = [
   "minimax-cn-token-plan/*",
 ];
 const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
+const DEFAULT_CLEANUP_AFTER_HOURS = 24;
 
 const SUPPORTED_MIME_TYPES = new Set([
   "image/png",
@@ -53,6 +61,8 @@ interface PluginConfig {
   models?: string[];
   imageAnalysisTool?: string;
   promptTemplate?: string;
+  tempDir?: string;
+  cleanupAfterHours?: number;
 }
 
 interface SavedImage {
@@ -111,6 +121,18 @@ function parsePromptTemplate(value: unknown): string | undefined {
   return trimmed;
 }
 
+function parseTempDir(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed === "" ? undefined : trimmed;
+}
+
+function parseCleanupAfterHours(value: unknown): number | undefined {
+  if (typeof value !== "number") return undefined;
+  if (!Number.isFinite(value) || value <= 0) return undefined;
+  return value;
+}
+
 function parseConfigObject(raw: unknown): PluginConfig {
   if (!raw || typeof raw !== "object") return {};
 
@@ -119,6 +141,8 @@ function parseConfigObject(raw: unknown): PluginConfig {
     models: parseModelsArray(obj.models),
     imageAnalysisTool: parseImageAnalysisTool(obj.imageAnalysisTool),
     promptTemplate: parsePromptTemplate(obj.promptTemplate),
+    tempDir: parseTempDir(obj.tempDir),
+    cleanupAfterHours: parseCleanupAfterHours(obj.cleanupAfterHours),
   };
 }
 
@@ -213,10 +237,36 @@ async function loadPluginConfig(
     log("Using default (hardcoded) injection prompt template");
   }
 
+  const tempDirResult = selectWithPrecedence(
+    projectConfig?.tempDir,
+    userConfig?.tempDir,
+    undefined,
+  );
+  if (tempDirResult.source !== "default") {
+    log(
+      `Using tempDir from ${tempDirResult.source} config: ${tempDirResult.value}`,
+    );
+  }
+
+  const cleanupResult = selectWithPrecedence(
+    projectConfig?.cleanupAfterHours,
+    userConfig?.cleanupAfterHours,
+    undefined,
+  );
+  if (cleanupResult.source !== "default") {
+    log(
+      `Using cleanupAfterHours from ${cleanupResult.source} config: ${cleanupResult.value}`,
+    );
+  } else {
+    log(`Using default cleanupAfterHours: ${DEFAULT_CLEANUP_AFTER_HOURS}`);
+  }
+
   pluginConfig = {
     models: modelsResult.value,
     imageAnalysisTool: toolResult.value,
     promptTemplate: templateResult.value,
+    tempDir: tempDirResult.value,
+    cleanupAfterHours: cleanupResult.value,
   };
 }
 
@@ -232,6 +282,14 @@ function getImageAnalysisTool(): string {
 
 function getPromptTemplate(): string | undefined {
   return pluginConfig.promptTemplate;
+}
+
+function getTempDir(): string {
+  return pluginConfig.tempDir ?? join(tmpdir(), TEMP_DIR_NAME);
+}
+
+function getCleanupAfterHours(): number {
+  return pluginConfig.cleanupAfterHours ?? DEFAULT_CLEANUP_AFTER_HOURS;
 }
 
 // Pattern Matching (supports wildcards: *, prefix*, *suffix, *contains*)
@@ -390,7 +448,7 @@ function getExtensionForMime(mime: string): string {
 }
 
 async function ensureTempDir(): Promise<string> {
-  const dir = join(tmpdir(), TEMP_DIR_NAME);
+  const dir = getTempDir();
   await mkdir(dir, { recursive: true });
   return dir;
 }
@@ -568,6 +626,36 @@ function updateOrCreateTextPart(
   }
 }
 
+// Temp File Cleanup
+
+async function cleanupOldTempFiles(log: Logger): Promise<void> {
+  const dir = getTempDir();
+  if (!existsSync(dir)) return;
+
+  const cutoffMs = getCleanupAfterHours() * 60 * 60 * 1000;
+  const now = Date.now();
+  let deleted = 0;
+
+  try {
+    const entries = await readdir(dir);
+    for (const entry of entries) {
+      const filepath = join(dir, entry);
+      try {
+        const stats = await stat(filepath);
+        if (now - stats.mtimeMs > cutoffMs) {
+          await unlink(filepath);
+          deleted++;
+        }
+      } catch {
+        // skip files that can't be stat'd or deleted
+      }
+    }
+    if (deleted > 0) log(`Cleaned up ${deleted} old temp file(s) from ${dir}`);
+  } catch {
+    // if readdir fails (e.g. permissions), skip cleanup silently
+  }
+}
+
 // Plugin Export
 
 export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
@@ -599,6 +687,7 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
   };
 
   await loadPluginConfig(directory, log, notify);
+  await cleanupOldTempFiles(log);
   log("Plugin initialized");
 
   return {

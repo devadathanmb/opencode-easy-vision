@@ -105,13 +105,19 @@ Config is read from JSON files (not `opencode.json`), with project-level taking 
 ```json
 {
   "models": ["minimax/*", "z-ai/*", "*/minimax-m2.5"],
-  "imageAnalysisTool": "mcp_minimax_understand_image"
+  "imageAnalysisTool": "mcp_minimax_understand_image",
+  "promptTemplate": "...",
+  "tempDir": "/custom/tmp/path",
+  "cleanupAfterHours": 48
 }
 ```
 
 **Defaults** (when no config provided):
-- `models`: `["minimax/*"]`
+- `models`: all MiniMax provider variants (see `DEFAULT_MODEL_PATTERNS` in `src/index.ts`)
 - `imageAnalysisTool`: `"mcp_minimax_understand_image"`
+- `promptTemplate`: built-in template (hardcoded in `generateInjectionPrompt`)
+- `tempDir`: OS temp dir + `opencode-minimax-vision/` subdirectory
+- `cleanupAfterHours`: `24` (files older than this are deleted at plugin startup)
 
 ### Model Pattern Matching
 Format: `provider/model` with wildcard support:
