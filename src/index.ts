@@ -9,7 +9,7 @@ import {
   findLastUserMessage,
   getModelFromMessage,
   removeProcessedImageParts,
-  updateOrCreateTextPart,
+  withUpdatedTextPart,
 } from "./transform.js";
 import { cleanupOldTempFiles } from "./cleanup.js";
 import type { Logger, Notifier } from "./types.js";
@@ -94,11 +94,13 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
           "Could not process attached images. Check logs for details.",
           "Easy Vision",
         );
-        lastUserMessage.parts = removeProcessedImageParts(
-          lastUserMessage.parts,
-          allImagePartIds,
-        );
-        messages[lastUserIndex] = lastUserMessage;
+        messages[lastUserIndex] = {
+          ...lastUserMessage,
+          parts: removeProcessedImageParts(
+            lastUserMessage.parts,
+            allImagePartIds,
+          ),
+        };
         return;
       }
 
@@ -120,13 +122,17 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
         getImageAnalysisTool(),
       );
 
-      lastUserMessage.parts = removeProcessedImageParts(
+      const trimmedParts = removeProcessedImageParts(
         lastUserMessage.parts,
         allImagePartIds,
       );
-
-      updateOrCreateTextPart(lastUserMessage, transformedText);
-      messages[lastUserIndex] = lastUserMessage;
+      messages[lastUserIndex] = {
+        ...lastUserMessage,
+        parts: withUpdatedTextPart(
+          { ...lastUserMessage, parts: trimmedParts },
+          transformedText,
+        ),
+      };
     },
   };
 };

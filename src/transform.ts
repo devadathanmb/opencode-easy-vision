@@ -41,23 +41,25 @@ export function removeProcessedImageParts(
   );
 }
 
-export function updateOrCreateTextPart(
+export function withUpdatedTextPart(
   message: { info: Message; parts: Part[] },
   newText: string,
-): void {
+): Part[] {
   const textPartIndex = message.parts.findIndex(isTextPart);
 
   if (textPartIndex !== -1) {
-    (message.parts[textPartIndex] as TextPart).text = newText;
-  } else {
-    const newTextPart: TextPart = {
-      id: `transformed-${randomUUID()}`,
-      sessionID: message.info.sessionID,
-      messageID: message.info.id,
-      type: "text",
-      text: newText,
-      synthetic: true,
-    };
-    message.parts.unshift(newTextPart);
+    return message.parts.map((part, i) =>
+      i === textPartIndex ? ({ ...part, text: newText } as TextPart) : part,
+    );
   }
+
+  const newTextPart: TextPart = {
+    id: `transformed-${randomUUID()}`,
+    sessionID: message.info.sessionID,
+    messageID: message.info.id,
+    type: "text",
+    text: newText,
+    synthetic: true,
+  };
+  return [newTextPart, ...message.parts];
 }
