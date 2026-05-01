@@ -143,7 +143,8 @@ function selectWithPrecedence<T>(
   projectValue: T | undefined,
   userValue: T | undefined,
 ): Resolution<T | undefined> {
-  if (projectValue !== undefined) return { value: projectValue, source: "project" };
+  if (projectValue !== undefined)
+    return { value: projectValue, source: "project" };
   if (userValue !== undefined) return { value: userValue, source: "user" };
   return { value: undefined, source: "default" };
 }
@@ -191,7 +192,10 @@ export async function loadPluginConfig(
     await createExampleConfigIfMissing(userJsonc, log);
   }
 
-  const models = selectWithPrecedence(projectConfig?.models, userConfig?.models);
+  const models = selectWithPrecedence(
+    projectConfig?.models,
+    userConfig?.models,
+  );
   logResolution(
     "models",
     models,
@@ -224,7 +228,10 @@ export async function loadPluginConfig(
     log,
   );
 
-  const tempDir = selectWithPrecedence(projectConfig?.tempDir, userConfig?.tempDir);
+  const tempDir = selectWithPrecedence(
+    projectConfig?.tempDir,
+    userConfig?.tempDir,
+  );
   logResolution("tempDir", tempDir, tempDir.value ?? "", null, log);
 
   const cleanupAfterHours = selectWithPrecedence(
