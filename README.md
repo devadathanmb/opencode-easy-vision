@@ -10,9 +10,6 @@ An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models
   * [1. Configure an MCP image analysis tool](#1-configure-an-mcp-image-analysis-tool)
   * [2. Install the plugin](#2-install-the-plugin)
 * [Configuration](#configuration)
-  * [Model Patterns](#model-patterns)
-  * [Image Analysis Tool](#image-analysis-tool)
-  * [Prompt Template](#prompt-template)
 * [Supported Image Formats](#supported-image-formats)
 * [Usage](#usage)
 * [Contributing](#contributing)
@@ -81,11 +78,23 @@ This routes image analysis through OpenRouter, giving you access to any vision-c
 > `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits.
 
 > [!NOTE]
-> Any MCP server with an image analysis tool will work — the above are just examples. For a different tool, add it to `opencode.json` the same way, then point the plugin to it using `imageAnalysisTool` — see [Image Analysis Tool](#image-analysis-tool).
+> Any MCP server with an image analysis tool will work — the above are just examples. For a different tool, add it to `opencode.json` the same way, then point the plugin to it using `imageAnalysisTool` — see [Configuration](#configuration).
 
 ### 2. Install the plugin
 
-Add `opencode-minimax-easy-vision` to the `plugin` array in your `opencode.json`:
+**With the OpenCode CLI (v1.3.4+):**
+
+Global (all projects):
+```bash
+opencode plugin opencode-minimax-easy-vision --global
+```
+
+Project-level (current directory only):
+```bash
+opencode plugin opencode-minimax-easy-vision
+```
+
+**Or manually,** add it to the `plugin` array in your `opencode.json`:
 
 ```json
 {
@@ -97,61 +106,16 @@ Add `opencode-minimax-easy-vision` to the `plugin` array in your `opencode.json`
 ## Configuration
 
 > [!IMPORTANT]
-> By default, this plugin only activates for **MiniMax models**. If you're using a different model and nothing is happening, configure the plugin to activate for that model — see [Model Patterns](#model-patterns) below.
+> By default, this plugin only activates for **MiniMax models**. If you're using a different model and nothing is happening, configure the plugin to activate for that model — see [CONFIGURATION.md](./CONFIGURATION.md).
 
 Config files are loaded in priority order:
 
-1. **Project level**: `.opencode/opencode-minimax-easy-vision.json`
-2. **User level**: `~/.config/opencode/opencode-minimax-easy-vision.json`
+1. **Project level**: `.opencode/opencode-minimax-easy-vision.json` (or `.jsonc`)
+2. **User level**: `~/.config/opencode/opencode-minimax-easy-vision.json` (or `.jsonc`)
 
-### Model Patterns
+If no config file exists, the plugin uses hardcoded defaults. On first load, an example config file is created at `~/.config/opencode/opencode-minimax-easy-vision.jsonc`.
 
-Control which models the plugin activates for:
-
-```json
-{
-  "models": ["z-ai/*", "*/some-model"]
-}
-```
-
-| Pattern          | Matches                                    |
-| ---------------- | ------------------------------------------ |
-| `*`              | All models                                 |
-| `z-ai/*`         | All models from a specific provider        |
-| `*/some-model`   | A specific model from any provider         |
-| `z-ai/glm-4.7`   | Exact match                                |
-
-If no config file exists, the plugin defaults to MiniMax models.
-
-### Image Analysis Tool
-
-By default the plugin uses `mcp_minimax_understand_image` from the MiniMax Coding Plan MCP. To use a different tool, set `imageAnalysisTool` to the tool name. The name follows the format `mcp_<server-key>_<tool>`, where `<server-key>` is the key you used when adding the server to the `mcp` object in `opencode.json`:
-
-```json
-{
-  "models": ["z-ai/*"],
-  "imageAnalysisTool": "mcp_openrouter_image_analyze_image"
-}
-```
-
-### Prompt Template
-
-Override the default injection prompt with a custom template:
-
-```json
-{
-  "promptTemplate": "I'm attaching {imageCount} image(s) for you to analyze.\n\nImages:\n{imageList}\n\nUse the `{toolName}` tool on each one.\n\nMy question: {userText}"
-}
-```
-
-| Variable       | Description                                             |
-| -------------- | ------------------------------------------------------- |
-| `{imageList}`  | Newline-separated list: `- Image 1: /path/to/file`     |
-| `{imageCount}` | Number of images, e.g. `1`, `3`                        |
-| `{toolName}`   | The configured MCP tool name                           |
-| `{userText}`   | The user's original message text (may be empty)        |
-
-The template must include at least one variable — if none are present, the plugin falls back to the default prompt.
+See [CONFIGURATION.md](./CONFIGURATION.md) for all available options, model pattern syntax, prompt template variables, and example configs.
 
 ## Supported Image Formats
 
