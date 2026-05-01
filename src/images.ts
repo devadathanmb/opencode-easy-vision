@@ -64,9 +64,9 @@ async function handleDataUrl(
   }
 
   try {
-    const savedPath = await saveImageToTemp(parsed.data, parsed.mime);
+    const savedPath = await saveImageToTemp(parsed.data, filePart.mime);
     log(`Saved image to: ${savedPath}`);
-    return { path: savedPath, mime: parsed.mime, partId: filePart.id };
+    return { path: savedPath, mime: filePart.mime, partId: filePart.id };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     log(`Failed to save image: ${msg}`);
@@ -140,16 +140,10 @@ export async function extractImagesFromParts(
   log: Logger,
   notify: Notifier,
 ): Promise<SavedImage[]> {
-  const savedImages: SavedImage[] = [];
-
-  for (const part of parts) {
-    if (!isImageFilePart(part)) continue;
-
-    const result = await processImagePart(part, log, notify);
-    if (result) {
-      savedImages.push(result);
-    }
-  }
-
-  return savedImages;
+  const results = await Promise.all(
+    parts
+      .filter(isImageFilePart)
+      .map((part) => processImagePart(part, log, notify)),
+  );
+  return results.filter((r): r is SavedImage => r !== null);
 }
