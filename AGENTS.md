@@ -17,7 +17,6 @@ npm install              # install deps (also installs husky git hooks)
 npm run build            # compile src/ → dist/ (tsc)
 npm run format           # format src/ with Prettier
 npm run format:check     # check formatting without writing
-npm publish              # runs build first via prepublishOnly
 ```
 
 Husky pre-commit hook runs `npm run format` automatically. Use `git commit --no-verify` to skip.
@@ -126,6 +125,24 @@ If no user-level config exists, the plugin auto-creates an example `.jsonc` file
 
 See [CONFIGURATION.md](./CONFIGURATION.md) for the full config reference, including all options, model pattern syntax, prompt template variables, and example configs.
 
+## Releases
+
+**Always confirm with the user before executing any release step.**
+
+1. Bump version, commit, and tag in one step:
+   ```bash
+   npm version patch   # bug fixes / docs
+   npm version minor   # new features, backwards compatible
+   npm version major   # breaking changes
+   ```
+   This updates `package.json`, creates a git commit, and creates a `v*` tag automatically.
+
+2. Push commits and the tag:
+   ```bash
+   git push && git push --tags
+   ```
+   The `v*` tag triggers `.github/workflows/publish.yml`, which runs CI then publishes to npm automatically. **Never run `npm publish` manually.**
+
 ## Notes for Agents
 
 1. **Multi-module**: Each file in `src/` owns one responsibility. Add new files for new concerns; don't consolidate back into `index.ts`.
@@ -134,4 +151,3 @@ See [CONFIGURATION.md](./CONFIGURATION.md) for the full config reference, includ
 4. **ES modules only**: No `require` or `module.exports`.
 5. **Minimal deps**: Prefer Node.js built-ins over new packages.
 6. **Build before commit**: Run `npm run build` and verify `dist/` output.
-7. **Versioning**: Follow semver (major.minor.patch).
