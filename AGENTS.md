@@ -8,7 +8,7 @@ TypeScript plugin for OpenCode that enables vision support for models lacking na
 - **Runtime**: Node.js >= 18.0.0
 - **Framework**: `@opencode-ai/plugin` (peer dep >=1.0.0, dev ^1.2.26)
 - **Module System**: ES modules only
-- **Architecture**: Single-file (`src/index.ts`) — all logic lives here
+- **Architecture**: Multi-module (`src/`) — each file owns one responsibility
 
 ## Commands
 
@@ -90,8 +90,22 @@ interface ModelInfo {
 }
 ```
 
+### Source Modules
+
+| File | Responsibility |
+|------|----------------|
+| `constants.ts` | All compile-time constants (patterns, MIME types, defaults) |
+| `types.ts` | Shared interfaces: `PluginConfig`, `SavedImage`, `ModelInfo`, `Logger`, `Notifier` |
+| `config.ts` | Config loading, parsing, validation, precedence, and accessors |
+| `patterns.ts` | Wildcard model pattern matching |
+| `images.ts` | Type guards, URL handlers (`file://`, `data:`, `http(s)://`), file I/O, image extraction |
+| `prompt.ts` | Prompt template rendering and injection prompt generation |
+| `transform.ts` | Message structural modification (find, remove parts, update text) |
+| `cleanup.ts` | Temp file deletion on startup |
+| `index.ts` | Plugin entry point — wires everything together, registers the hook |
+
 ### Module-level State
-`pluginConfig` is a single mutable module-level variable loaded once at plugin init via `loadPluginConfig()`. This is intentional.
+`pluginConfig` is a single mutable module-level variable in `config.ts`, loaded once at plugin init via `loadPluginConfig()`. Accessor functions (`getConfiguredModels()`, `getTempDir()`, etc.) are exported from `config.ts` and used by other modules — no threading of config as a parameter. This is intentional.
 
 ## Configuration
 
@@ -113,9 +127,9 @@ Config is read from JSON files (not `opencode.json`), with project-level taking 
 ```
 
 **Defaults** (when no config provided):
-- `models`: all MiniMax provider variants (see `DEFAULT_MODEL_PATTERNS` in `src/index.ts`)
+- `models`: all MiniMax provider variants (see `DEFAULT_MODEL_PATTERNS` in `src/constants.ts`)
 - `imageAnalysisTool`: `"mcp_minimax_understand_image"`
-- `promptTemplate`: built-in template (hardcoded in `generateInjectionPrompt`)
+- `promptTemplate`: built-in template (hardcoded in `generateInjectionPrompt` in `src/prompt.ts`)
 - `tempDir`: OS temp dir + `opencode-minimax-vision/` subdirectory
 - `cleanupAfterHours`: `24` (files older than this are deleted at plugin startup)
 
@@ -131,7 +145,7 @@ No-slash patterns match against both provider and model ID.
 
 ## Notes for Agents
 
-1. **Single-file**: All code in `src/index.ts`. Don't add modules unless necessary.
+1. **Multi-module**: Each file in `src/` owns one responsibility. Add new files for new concerns; don't consolidate back into `index.ts`.
 2. **No linter/formatter**: Follow existing style exactly.
 3. **Functional over OOP**: No classes, no mutations.
 4. **ES modules only**: No `require` or `module.exports`.
