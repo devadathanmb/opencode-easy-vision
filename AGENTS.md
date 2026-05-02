@@ -1,153 +1,137 @@
 # Agent Guidelines for opencode-minimax-easy-vision
 
-## Project Overview
+## Purpose
 
-TypeScript plugin for OpenCode that enables vision support for models lacking native image attachment support. Intercepts pasted images, saves them to disk, and injects MCP tool instructions so models can analyze images via a configurable tool (default: `mcp_minimax_understand_image`).
+This repository is a TypeScript OpenCode plugin that lets text-only models work
+with pasted images. The plugin saves or forwards image parts, removes the raw
+image attachments from the chat message, and injects instructions telling the
+model which MCP image-analysis tool to call.
 
-- **Language**: TypeScript (ES2022, strict mode)
-- **Runtime**: Node.js >= 18.0.0
-- **Framework**: `@opencode-ai/plugin` (peer dep >=1.0.0, dev ^1.2.26)
-- **Module System**: ES modules only
-- **Architecture**: Multi-module (`src/`) — each file owns one responsibility
+Keep this file focused on maintainer instructions for coding agents. Do not copy
+the full configuration or setup guide here; link to the canonical docs instead.
+
+## Canonical References
+
+- User-facing setup and usage: [README.md](./README.md)
+- Full plugin configuration reference: [CONFIGURATION.md](./CONFIGURATION.md)
+- Agent-assisted user setup workflow: [AGENT_SETUP.md](./AGENT_SETUP.md)
+- Local development and symlink testing: [CONTRIBUTING.md](./CONTRIBUTING.md)
+- Example config shipped with the package:
+  [opencode-minimax-easy-vision.example.jsonc](./opencode-minimax-easy-vision.example.jsonc)
+
+## Project Facts
+
+- TypeScript, strict mode, ES modules only.
+- Runtime target is Node.js `>=18.0.0`.
+- Plugin framework is `@opencode-ai/plugin`.
+- Source lives in `src/`; compiled output is `dist/`.
+- There is no test framework. Validation is formatting plus TypeScript build,
+  followed by manual OpenCode testing when behavior changes.
 
 ## Commands
 
 ```bash
-npm install              # install deps (also installs husky git hooks)
-npm run build            # compile src/ → dist/ (tsc)
-npm run format           # format src/ with Prettier
-npm run format:check     # check formatting without writing
+npm install
+npm run format
+npm run format:check
+npm run build
 ```
 
-Husky pre-commit hook runs `npm run format` automatically. Use `git commit --no-verify` to skip.
+Use `npm run build` before committing code changes. CI runs `npm ci`,
+`npm run format:check`, and `npm run build`.
 
-**No test framework.** Manual testing: build → add to `opencode.json` plugins → paste an image with a matching model.
+The Husky pre-commit hook runs `npm run format`. It only formats `src/**/*.ts`.
 
-## Code Style
+## Architecture
 
-### Imports
-- `import type` for TypeScript types
-- `node:` prefix for Node.js built-ins
-- Order: type imports → Node.js imports → external imports
+The plugin entry point is [src/index.ts](./src/index.ts). It registers
+`experimental.chat.messages.transform` and wires together the modules below.
 
-### Naming
-| Kind | Convention |
-|------|------------|
-| Files | lowercase (`index.ts`) |
-| Functions/variables | camelCase |
-| Constants | UPPER_SNAKE_CASE |
-| Types/Interfaces | PascalCase |
-| Type guards | `is*` prefix (`isImageFilePart`, `isTextPart`) |
+- [src/constants.ts](./src/constants.ts): package constants, defaults, MIME
+  mappings, prompt templates.
+- [src/types.ts](./src/types.ts): shared interfaces and function types.
+- [src/config.ts](./src/config.ts): config discovery, JSON/JSONC parsing,
+  validation, precedence, example-config auto-init, and runtime accessors.
+- [src/patterns.ts](./src/patterns.ts): case-insensitive wildcard model matching.
+- [src/images.ts](./src/images.ts): image part detection, URL handling, temp-file
+  writing, and image extraction.
+- [src/prompt.ts](./src/prompt.ts): prompt-template substitution and default
+  injection prompt selection.
+- [src/transform.ts](./src/transform.ts): message lookup, model extraction,
+  image-part removal, and text-part replacement/creation.
+- [src/cleanup.ts](./src/cleanup.ts): startup cleanup for plugin-owned temp files.
 
-### Type Safety
-- Never use `as any`, `@ts-ignore`, or `@ts-expect-error`
-- Use type guard predicates (`part is FilePart`) for narrowing
-- Use `??` for nullish defaults
+When adding behavior, preserve these module boundaries. Add a new small module
+for a new concern instead of growing [src/index.ts](./src/index.ts).
 
-### Async/Error Handling
-- Prefer `async/await` over promise chains
-- Always `await` file system operations
-- `try/catch` all I/O; log errors, never swallow silently
-- Plugin must never crash OpenCode — catch and continue gracefully
-- Logging errors may be suppressed with `.catch(() => {})`
+## Transform Flow
 
-### Style
-- Pure functions — no side effects except I/O and logging
-- Small, single-responsibility functions
-- Don't mutate parameters; return new data structures
+The hook should stay defensive and non-crashing:
 
-## Plugin Architecture
+1. Find the last user message.
+2. Read the model from that message and check it against configured patterns.
+3. Extract supported image file parts.
+4. Save `data:` images to the configured temp directory; pass `file://` and
+   HTTP(S) images through as paths/URLs.
+5. Remove all image parts that the target model cannot consume directly.
+6. Inject or update text with the MCP tool instructions and the user's original
+   request.
 
-### Exports
-```typescript
-export const MinimaxEasyVisionPlugin: Plugin = async (input) => { ... };
-export default MinimaxEasyVisionPlugin;
+If image processing partially or fully fails, log the failure, show a toast when
+the user can act on it, and keep OpenCode running.
+
+## Coding Rules
+
+- Use `import type` for TypeScript-only imports.
+- Use `node:` prefixes for Node built-ins.
+- Keep import order as type imports, Node built-ins, external packages, then
+  local modules.
+- Do not use `require`, `module.exports`, `as any`, `@ts-ignore`, or
+  `@ts-expect-error`.
+- Prefer type guards for narrowing, especially around OpenCode `Part` variants.
+- Prefer `??` for nullish defaults.
+- Await filesystem operations and wrap I/O in `try`/`catch` when failure should
+  not crash the plugin.
+- Do not mutate parameters; return new data structures for message/part changes.
+- Keep functions small and mostly pure. I/O and OpenCode logging/toasts are the
+  expected side effects.
+- Prefer Node built-ins over new dependencies unless the dependency removes real
+  complexity.
+
+## Configuration Changes
+
+Configuration behavior is documented in [CONFIGURATION.md](./CONFIGURATION.md)
+and implemented in [src/config.ts](./src/config.ts). When changing config:
+
+- Update `PluginConfig` in [src/types.ts](./src/types.ts).
+- Update parsing, validation, precedence logging, and accessors in
+  [src/config.ts](./src/config.ts).
+- Update defaults in [src/constants.ts](./src/constants.ts) when applicable.
+- Update [CONFIGURATION.md](./CONFIGURATION.md) and the example JSONC file.
+- Avoid duplicating option tables or examples in this file.
+
+The module-level `pluginConfig` state in [src/config.ts](./src/config.ts) is
+intentional. Other modules should use exported accessors instead of threading
+config through every call.
+
+## Validation
+
+For code changes, run:
+
+```bash
+npm run format:check
+npm run build
 ```
 
-### Hook
-`experimental.chat.messages.transform` — runs before each LLM call:
-1. Finds the last user message
-2. Checks if the current model matches configured patterns
-3. Extracts image parts (`file://`, `data:`, `http(s)://` URLs all handled)
-4. Saves base64/data-URL images to a temp dir; passes file/HTTP paths through
-5. Removes image parts from the message (model can't process them natively)
-6. Replaces/creates a text part with MCP tool instructions + original user text
-
-### Key Types
-```typescript
-interface PluginConfig {
-  models?: string[];          // model patterns; defaults to DEFAULT_MODEL_PATTERNS
-  imageAnalysisTool?: string; // MCP tool name; defaults to DEFAULT_IMAGE_ANALYSIS_TOOL
-  promptTemplate?: string;    // custom injection prompt; must include at least one variable
-  tempDir?: string;           // custom temp directory; defaults to OS temp + opencode-minimax-vision/
-  cleanupAfterHours?: number; // temp file cleanup threshold; defaults to 24
-}
-
-interface SavedImage {
-  path: string;  // local file path or remote URL
-  mime: string;
-  partId: string;
-}
-
-interface ModelInfo {
-  providerID: string;
-  modelID: string;
-}
-```
-
-### Source Modules
-
-| File | Responsibility |
-|------|----------------|
-| `constants.ts` | All compile-time constants (patterns, MIME types, defaults) |
-| `types.ts` | Shared interfaces: `PluginConfig`, `SavedImage`, `ModelInfo`, `Logger`, `Notifier` |
-| `config.ts` | Config loading (JSON + JSONC), parsing, validation, precedence, accessors, and auto-init of example config |
-| `patterns.ts` | Wildcard model pattern matching |
-| `images.ts` | Image type guard (`isImageFilePart`), URL handlers (`file://`, `data:`, `http(s)://`), file I/O, image extraction |
-| `prompt.ts` | Prompt template rendering and injection prompt generation |
-| `transform.ts` | Type guard (`isTextPart`), message structural modification (find, remove parts, update text) |
-| `cleanup.ts` | Temp file deletion on startup |
-| `index.ts` | Plugin entry point — wires everything together, registers the hook |
-
-### Module-level State
-`pluginConfig` is a single mutable module-level variable in `config.ts`, loaded once at plugin init via `loadPluginConfig()`. Accessor functions (`getConfiguredModels()`, `getTempDir()`, etc.) are exported from `config.ts` and used by other modules — no threading of config as a parameter. This is intentional.
-
-## Configuration
-
-Config is read from `.json` or `.jsonc` files (not `opencode.json`), with project-level taking precedence over user-level.
-
-| Priority | Level | Path |
-|----------|-------|------|
-| 1 (highest) | Project | `.opencode/opencode-minimax-easy-vision.json` or `.jsonc` |
-| 2 | User | `~/.config/opencode/opencode-minimax-easy-vision.json` or `.jsonc` |
-
-If no user-level config exists, the plugin auto-creates an example `.jsonc` file at `~/.config/opencode/opencode-minimax-easy-vision.jsonc` on first load.
-
-See [CONFIGURATION.md](./CONFIGURATION.md) for the full config reference, including all options, model pattern syntax, prompt template variables, and example configs.
+Run `npm run format` only when formatting changes are needed. For behavior that
+depends on OpenCode runtime wiring, follow the manual testing flow in
+[CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Releases
 
-**Always confirm with the user before executing any release step.**
+Always confirm with the user before running any release command.
 
-1. Bump version, commit, and tag in one step:
-   ```bash
-   npm version patch   # bug fixes / docs
-   npm version minor   # new features, backwards compatible
-   npm version major   # breaking changes
-   ```
-   This updates `package.json`, creates a git commit, and creates a `v*` tag automatically.
-
-2. Push commits and the tag:
-   ```bash
-   git push && git push --tags
-   ```
-   The `v*` tag triggers `.github/workflows/publish.yml`, which runs CI then publishes to npm automatically. **Never run `npm publish` manually.**
-
-## Notes for Agents
-
-1. **Multi-module**: Each file in `src/` owns one responsibility. Add new files for new concerns; don't consolidate back into `index.ts`.
-2. **Formatter**: Prettier with husky pre-commit hook.
-3. **Functional over OOP**: No classes, no mutations.
-4. **ES modules only**: No `require` or `module.exports`.
-5. **Minimal deps**: Prefer Node.js built-ins over new packages.
-6. **Build before commit**: Run `npm run build` and verify `dist/` output.
+Use `npm version patch`, `npm version minor`, or `npm version major` to bump,
+commit, and tag. Push both the commit and tag so
+[.github/workflows/publish.yml](./.github/workflows/publish.yml) can publish to
+npm. Do not run `npm publish` manually.
