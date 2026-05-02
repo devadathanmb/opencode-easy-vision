@@ -134,31 +134,20 @@ async function createExampleConfigIfMissing(
   }
 }
 
-// Precedence & Merging (project > user > defaults)
-type Resolution<T> = { value: T; source: "project" | "user" | "default" };
+// Config value selection (Precedence: project > user > defaults)
+type ConfigSelection<T> = {
+  value: T;
+  source: "project" | "user" | "default";
+};
 
-function selectWithPrecedence<T>(
+function selectConfigValue<T>(
   projectValue: T | undefined,
   userValue: T | undefined,
-): Resolution<T | undefined> {
+): ConfigSelection<T | undefined> {
   if (projectValue !== undefined)
     return { value: projectValue, source: "project" };
   if (userValue !== undefined) return { value: userValue, source: "user" };
   return { value: undefined, source: "default" };
-}
-
-function logResolution<T>(
-  fieldName: string,
-  resolution: Resolution<T | undefined>,
-  valueStr: string,
-  defaultMsg: string | null,
-  log: Logger,
-): void {
-  if (resolution.source !== "default") {
-    log(`Using ${fieldName} from ${resolution.source} config: ${valueStr}`);
-  } else if (defaultMsg !== null) {
-    log(defaultMsg);
-  }
 }
 
 export async function loadPluginConfig(
@@ -167,6 +156,21 @@ export async function loadPluginConfig(
 ): Promise<void> {
   const onParseError = (path: string) =>
     log(`WARN: Config file has invalid JSON and will be ignored: ${path}`);
+
+  function logSelected<T>(
+    fieldName: string,
+    selection: ConfigSelection<T | undefined>,
+    selectedValueLabel: string,
+    defaultMessage: string | null,
+  ): void {
+    if (selection.source !== "default") {
+      log(
+        `Using ${fieldName} from ${selection.source} config: ${selectedValueLabel}`,
+      );
+    } else if (defaultMessage !== null) {
+      log(defaultMessage);
+    }
+  }
 
   const userJson = getUserConfigPath();
   const userJsonc = getUserConfigPathJsonc();
@@ -190,58 +194,51 @@ export async function loadPluginConfig(
     await createExampleConfigIfMissing(userJsonc, log);
   }
 
-  const models = selectWithPrecedence(
-    projectConfig?.models,
-    userConfig?.models,
-  );
-  logResolution(
+  const models = selectConfigValue(projectConfig?.models, userConfig?.models);
+  logSelected(
     "models",
     models,
     models.value?.join(", ") ?? "",
     `Using default models: ${DEFAULT_MODEL_PATTERNS.join(", ")}`,
-    log,
   );
 
-  const imageAnalysisTool = selectWithPrecedence(
+  const imageAnalysisTool = selectConfigValue(
     projectConfig?.imageAnalysisTool,
     userConfig?.imageAnalysisTool,
   );
-  logResolution(
+  logSelected(
     "imageAnalysisTool",
     imageAnalysisTool,
     imageAnalysisTool.value ?? "",
     `Using default imageAnalysisTool: ${DEFAULT_IMAGE_ANALYSIS_TOOL}`,
-    log,
   );
 
-  const promptTemplate = selectWithPrecedence(
+  const promptTemplate = selectConfigValue(
     projectConfig?.promptTemplate,
     userConfig?.promptTemplate,
   );
-  logResolution(
+  logSelected(
     "promptTemplate",
     promptTemplate,
     `${promptTemplate.value?.length ?? 0} chars`,
     "Using default (hardcoded) injection prompt template",
-    log,
   );
 
-  const tempDir = selectWithPrecedence(
+  const tempDir = selectConfigValue(
     projectConfig?.tempDir,
     userConfig?.tempDir,
   );
-  logResolution("tempDir", tempDir, tempDir.value ?? "", null, log);
+  logSelected("tempDir", tempDir, tempDir.value ?? "", null);
 
-  const cleanupAfterHours = selectWithPrecedence(
+  const cleanupAfterHours = selectConfigValue(
     projectConfig?.cleanupAfterHours,
     userConfig?.cleanupAfterHours,
   );
-  logResolution(
+  logSelected(
     "cleanupAfterHours",
     cleanupAfterHours,
     String(cleanupAfterHours.value),
     `Using default cleanupAfterHours: ${DEFAULT_CLEANUP_AFTER_HOURS}`,
-    log,
   );
 
   pluginConfig = {
