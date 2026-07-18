@@ -33,6 +33,7 @@ jobs:
     name: Publish to npm
     needs: ci
     runs-on: ubuntu-latest
+    environment: npm-publish-action
     permissions:
       id-token: write # Required for npm provenance
       contents: read
