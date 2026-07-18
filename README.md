@@ -35,9 +35,10 @@ This plugin automates the entire workaround. It intercepts pasted images, saves 
 | <img width="100%" alt="Without plugin screenshot" src="https://github.com/user-attachments/assets/eb5c76ce-e1a6-4ad0-aa51-58ce5e8efd8f" /> | <img width="100%" alt="With plugin screenshot" src="https://github.com/user-attachments/assets/b5bcaac4-8ac8-48eb-90cb-59630c26f4e1" /> |
 | The image is silently ignored by the model. | The model analyzes the attached image correctly before answering. |
 
-https://github.com/user-attachments/assets/df396c6c-6fa8-46b8-8984-c003ecf1c12c
 
-https://github.com/user-attachments/assets/826f90ea-913f-427e-ace8-0b711302c497
+https://github.com/user-attachments/assets/da7d8618-5de1-4a00-9250-a91493e3ea16
+
+https://github.com/user-attachments/assets/fdb68339-b95b-46eb-90d4-ac2dbc0f436e
 
 ## Setup
 
