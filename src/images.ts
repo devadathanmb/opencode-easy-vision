@@ -1,7 +1,7 @@
 import type { Part, FilePart } from "@opencode-ai/sdk";
 import { join } from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
-import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { SUPPORTED_MIME_TYPES, MIME_TO_EXTENSION } from "./constants.js";
 import { getTempDir } from "./config.js";
@@ -64,7 +64,11 @@ async function handleDataUrl(
   }
 
   try {
-    const savedPath = await saveImageToTemp(parsed.data, filePart.mime);
+    const savedPath = await saveImageToTemp(
+      parsed.data,
+      filePart.mime,
+      filePart.id,
+    );
     log(`Saved image to: ${savedPath}`);
     return { path: savedPath, mime: filePart.mime, partId: filePart.id };
   } catch (err) {
@@ -99,9 +103,16 @@ async function ensureTempDir(): Promise<string> {
   return dir;
 }
 
-async function saveImageToTemp(data: Buffer, mime: string): Promise<string> {
+async function saveImageToTemp(
+  data: Buffer,
+  mime: string,
+  partId: string,
+): Promise<string> {
   const tempDir = await ensureTempDir();
-  const filename = `${randomUUID()}.${getExtensionForMime(mime)}`;
+  // OpenCode reruns message transforms after tool calls. A stable name keeps every
+  // pass for the same attachment pointed at the path already shown to the model.
+  const fileId = createHash("sha256").update(partId).digest("hex");
+  const filename = `${fileId}.${getExtensionForMime(mime)}`;
   const filepath = join(tempDir, filename);
   await writeFile(filepath, data);
   return filepath;

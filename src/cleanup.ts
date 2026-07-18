@@ -4,10 +4,10 @@ import { existsSync } from "node:fs";
 import { getTempDirsForCleanup, getCleanupAfterHours } from "./config.js";
 import type { Logger } from "./types.js";
 
-// Matches only UUID-named image files that this plugin wrote, so we never
-// accidentally delete unrelated files that happen to land in the same directory.
+// Keep matching legacy UUID names while also accepting deterministic SHA-256 names.
+// Both formats are plugin-owned, so unrelated files in custom directories are safe.
 const PLUGIN_FILE_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(png|jpg|webp)$/;
+  /^(?:[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(png|jpg|webp)$/;
 
 async function tryDeleteIfExpired(
   filepath: string,
