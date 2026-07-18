@@ -29,7 +29,7 @@ Ask the user:
 > Which MCP image analysis tool would you like to use?
 >
 > 1. **MiniMax Coding Plan MCP** — official MiniMax tool
-> 2. **openrouter-image-mcp** — routes through OpenRouter, includes free vision models
+> 2. **openrouter-image-mcp** — routes through OpenRouter and supports paid or free vision models
 > 3. **Something else** — I already have one configured, or I want a different tool
 
 ---
@@ -59,7 +59,7 @@ Tool name to use in plugin config: **`mcp_minimax_understand_image`** (OpenCode 
 
 Ask for their OpenRouter API key. They can create one at https://openrouter.ai/keys.
 
-Ask which vision model they want to use. If unsure, `nvidia/nemotron-nano-12b-v2-vl:free` is free and requires no credits.
+Ask which vision model they want to use. If unsure, recommend `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, a free multimodal model designed for image perception and reasoning. Free model availability changes over time, so check [OpenRouter's free models](https://openrouter.ai/models?fmt=cards&max_price=0) for current alternatives and explain that free endpoints use shared capacity, so latency and availability can vary.
 
 Add or update the `openrouter_image` entry in the `mcp` block of `~/.config/opencode/opencode.json`:
 
@@ -69,7 +69,7 @@ Add or update the `openrouter_image` entry in the `mcp` block of `~/.config/open
   "command": ["npx", "openrouter-image-mcp"],
   "environment": {
     "OPENROUTER_API_KEY": "<their key>",
-    "OPENROUTER_MODEL": "nvidia/nemotron-nano-12b-v2-vl:free"
+    "OPENROUTER_MODEL": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
   }
 }
 ```

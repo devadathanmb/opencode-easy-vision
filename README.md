@@ -77,7 +77,7 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
       "command": ["npx", "openrouter-image-mcp"],
       "environment": {
         "OPENROUTER_API_KEY": "your-api-key-here",
-        "OPENROUTER_MODEL": "nvidia/nemotron-nano-12b-v2-vl:free"
+        "OPENROUTER_MODEL": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
       }
     }
   }
@@ -86,7 +86,7 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 
 > [!TIP]
 >
-> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits. When using this server, set `imageAnalysisTool` to `openrouter_image_analyze_image` in the plugin config.
+> `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free` is a free multimodal model designed for image perception and reasoning. Free model availability changes over time, so check [OpenRouter's free models](https://openrouter.ai/models?fmt=cards&max_price=0) for current alternatives. Free endpoints use shared capacity and may respond more slowly or time out under load. When using this server, set `imageAnalysisTool` to `openrouter_image_analyze_image` in the plugin config.
 
 > [!NOTE]
 >
