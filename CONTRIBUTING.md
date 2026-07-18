@@ -17,7 +17,7 @@ Husky is configured as a `prepare` script and installs automatically on `npm ins
 
 ```bash
 mkdir -p ~/.config/opencode/plugin
-ln -sf $(pwd)/dist/index.js ~/.config/opencode/plugin/opencode-minimax-easy-vision.js
+ln -sf $(pwd)/dist/index.js ~/.config/opencode/plugin/opencode-easy-vision.js
 ```
 
 Restart OpenCode to pick up the symlinked plugin.

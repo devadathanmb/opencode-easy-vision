@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { getTempDir, getCleanupAfterHours } from "./config.js";
+import { getTempDirsForCleanup, getCleanupAfterHours } from "./config.js";
 import type { Logger } from "./types.js";
 
 // Matches only UUID-named image files that this plugin wrote, so we never
@@ -28,12 +28,13 @@ async function tryDeleteIfExpired(
   return false;
 }
 
-export async function cleanupOldTempFiles(log: Logger): Promise<void> {
-  const dir = getTempDir();
+async function cleanupTempDir(
+  dir: string,
+  now: number,
+  cutoffMs: number,
+  log: Logger,
+): Promise<void> {
   if (!existsSync(dir)) return;
-
-  const cutoffMs = getCleanupAfterHours() * 60 * 60 * 1000;
-  const now = Date.now();
 
   try {
     const entries = await readdir(dir);
@@ -49,4 +50,15 @@ export async function cleanupOldTempFiles(log: Logger): Promise<void> {
   } catch {
     // if readdir fails (e.g. permissions), skip cleanup silently
   }
+}
+
+export async function cleanupOldTempFiles(log: Logger): Promise<void> {
+  const cutoffMs = getCleanupAfterHours() * 60 * 60 * 1000;
+  const now = Date.now();
+
+  await Promise.all(
+    getTempDirsForCleanup().map((dir) =>
+      cleanupTempDir(dir, now, cutoffMs, log),
+    ),
+  );
 }

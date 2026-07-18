@@ -2,21 +2,25 @@
 
 An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models that lack it — paste images directly into the chat and ask questions, just like you would with Claude or GPT.
 
+> [!IMPORTANT]
+>
+> **Renamed from `opencode-minimax-easy-vision`:** Existing users only need to replace the old package name in the `plugin` array with `opencode-easy-vision`. Existing plugin configuration continues to work; no other migration is required.
+
 ## Table of Contents
 
-* [The Problem](#the-problem)
-* [Demo](#demo)
-* [Setup](#setup)
-  * [For Humans](#for-humans)
-  * [For LLM Agents](#for-llm-agents)
-* [Usage](#usage)
-* [Configuration](#configuration)
-* [Supported Image Formats](#supported-image-formats)
-* [Troubleshooting](#troubleshooting)
-* [Uninstallation](#uninstallation)
-* [Contributing](#contributing)
-* [License](#license)
-* [References](#references)
+- [The Problem](#the-problem)
+- [Demo](#demo)
+- [Setup](#setup)
+  - [For Humans](#for-humans)
+  - [For LLM Agents](#for-llm-agents)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Supported Image Formats](#supported-image-formats)
+- [Troubleshooting](#troubleshooting)
+- [Uninstallation](#uninstallation)
+- [Contributing](#contributing)
+- [License](#license)
+- [References](#references)
 
 ## The Problem
 
@@ -27,7 +31,7 @@ This plugin automates the entire workaround. It intercepts pasted images, saves 
 ## Demo
 
 | Without the plugin | With the plugin |
-|:-:|:-:|
+| :-: | :-: |
 | <img width="100%" alt="Without plugin screenshot" src="https://github.com/user-attachments/assets/eb5c76ce-e1a6-4ad0-aa51-58ce5e8efd8f" /> | <img width="100%" alt="With plugin screenshot" src="https://github.com/user-attachments/assets/b5bcaac4-8ac8-48eb-90cb-59630c26f4e1" /> |
 | The image is silently ignored by the model. | The model analyzes the attached image correctly before answering. |
 
@@ -80,9 +84,11 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 ```
 
 > [!TIP]
-> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits.
+>
+> `nvidia/nemotron-nano-12b-v2-vl:free` is a free vision model on OpenRouter that requires no credits. When using this server, set `imageAnalysisTool` to `openrouter_image_analyze_image` in the plugin config.
 
 > [!NOTE]
+>
 > Any MCP server with an image analysis tool will work — the above are just examples. For a different tool, point the plugin to it using `imageAnalysisTool` — see [Configuration](#configuration).
 
 #### 2. Install the plugin
@@ -90,13 +96,15 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 **With the OpenCode CLI (v1.3.4+):**
 
 Global (all projects):
+
 ```bash
-opencode plugin opencode-minimax-easy-vision --global
+opencode plugin opencode-easy-vision --global
 ```
 
 Project-level (current directory only):
+
 ```bash
-opencode plugin opencode-minimax-easy-vision
+opencode plugin opencode-easy-vision
 ```
 
 **Or manually,** add it to the `plugin` array in your `opencode.json`:
@@ -104,7 +112,7 @@ opencode plugin opencode-minimax-easy-vision
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-minimax-easy-vision"]
+  "plugin": ["opencode-easy-vision"]
 }
 ```
 
@@ -115,7 +123,7 @@ opencode plugin opencode-minimax-easy-vision
 **Paste this into OpenCode and let your agent handle the rest:**
 
 ```
-Set up opencode-minimax-easy-vision by following https://raw.githubusercontent.com/devadathanmb/opencode-minimax-easy-vision/main/AGENT_SETUP.md
+Set up opencode-easy-vision by following https://raw.githubusercontent.com/devadathanmb/opencode-easy-vision/main/AGENT_SETUP.md
 ```
 
 <details>
@@ -140,14 +148,15 @@ The agent follows the instructions in [AGENT_SETUP.md](./AGENT_SETUP.md). It wil
 ## Configuration
 
 > [!IMPORTANT]
+>
 > By default, this plugin only activates for **MiniMax provider models** — i.e. models where MiniMax is the direct provider in OpenCode (IDs matching `minimax/*`, `minimax-cn/*`, etc.). If you're accessing a MiniMax model through a third-party provider like OpenRouter, or using a completely different model, the plugin won't activate until you add that model's pattern to the `models` config — see [CONFIGURATION.md](./CONFIGURATION.md).
 
 Config files are loaded in priority order:
 
-1. **Project level**: `.opencode/opencode-minimax-easy-vision.json` (or `.jsonc`)
-2. **User level**: `~/.config/opencode/opencode-minimax-easy-vision.json` (or `.jsonc`)
+1. **Project level**: `.opencode/opencode-easy-vision.json` (or `.jsonc`)
+2. **User level**: `~/.config/opencode/opencode-easy-vision.json` (or `.jsonc`)
 
-On first load, an example config is created at `~/.config/opencode/opencode-minimax-easy-vision.jsonc` with all options and inline comments. See [CONFIGURATION.md](./CONFIGURATION.md) for the full reference.
+On first load, an example config is created at `~/.config/opencode/opencode-easy-vision.jsonc`. See [CONFIGURATION.md](./CONFIGURATION.md) for the full reference.
 
 ## Supported Image Formats
 
@@ -160,7 +169,7 @@ PNG, JPEG, WebP — exact formats depend on the image analysis tool you've confi
 OpenCode caches plugins under `~/.cache/opencode/packages/`. If it's still running an old version after a release, clear the cache entry and restart:
 
 ```bash
-rm -rf ~/.cache/opencode/packages/opencode-minimax-easy-vision@latest
+rm -rf ~/.cache/opencode/packages/opencode-easy-vision@latest
 ```
 
 **Plugin not activating?**
@@ -169,12 +178,12 @@ By default the plugin only fires for MiniMax provider models (IDs matching `mini
 
 ## Uninstallation
 
-1. Remove `opencode-minimax-easy-vision` from the `plugin` array in your `opencode.json` file.
+1. Remove `opencode-easy-vision` from the `plugin` array in your `opencode.json` file.
 
 2. Delete the config files the plugin created:
 
 ```bash
-rm -f ~/.config/opencode/opencode-minimax-easy-vision.{json,jsonc}
+rm -f ~/.config/opencode/opencode-easy-vision.{json,jsonc}
 ```
 
 ## Contributing
@@ -187,7 +196,7 @@ AGPL-3.0. See [LICENSE](./LICENSE).
 
 ## References
 
-* [OpenCode Official Website](https://opencode.ai)
-* [OpenCode Plugins Documentation](https://opencode.ai/docs/plugins/)
-* [MiniMax Coding Plan MCP Repository](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP)
-* [openrouter-image-mcp Repository](https://github.com/JonathanJude/openrouter-image-mcp)
+- [OpenCode Official Website](https://opencode.ai)
+- [OpenCode Plugins Documentation](https://opencode.ai/docs/plugins/)
+- [MiniMax Coding Plan MCP Repository](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP)
+- [openrouter-image-mcp Repository](https://github.com/JonathanJude/openrouter-image-mcp)

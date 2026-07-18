@@ -7,8 +7,11 @@ import stripJsonComments from "strip-json-comments";
 import {
   CONFIG_FILENAME,
   CONFIG_FILENAME_JSONC,
+  LEGACY_CONFIG_FILENAME,
+  LEGACY_CONFIG_FILENAME_JSONC,
   EXAMPLE_CONFIG_FILENAME,
   TEMP_DIR_NAME,
+  LEGACY_TEMP_DIR_NAME,
   MAX_TOOL_NAME_LENGTH,
   PROMPT_TEMPLATE_VARIABLES,
   DEFAULT_MODEL_PATTERNS,
@@ -20,20 +23,12 @@ import type { PluginConfig, Logger } from "./types.js";
 let pluginConfig: PluginConfig = {};
 
 // Path Resolution
-function getUserConfigPath(): string {
-  return join(homedir(), ".config", "opencode", CONFIG_FILENAME);
+function getUserConfigPath(filename: string): string {
+  return join(homedir(), ".config", "opencode", filename);
 }
 
-function getUserConfigPathJsonc(): string {
-  return join(homedir(), ".config", "opencode", CONFIG_FILENAME_JSONC);
-}
-
-function getProjectConfigPath(directory: string): string {
-  return join(directory, ".opencode", CONFIG_FILENAME);
-}
-
-function getProjectConfigPathJsonc(directory: string): string {
-  return join(directory, ".opencode", CONFIG_FILENAME_JSONC);
+function getProjectConfigPath(directory: string, filename: string): string {
+  return join(directory, ".opencode", filename);
 }
 
 // File Parsing
@@ -101,6 +96,55 @@ async function readConfigFile(
     onParseError?.(configPath);
     return null;
   }
+}
+
+type LoadedConfig = {
+  config: PluginConfig;
+  path: string;
+};
+
+type ConfigPaths = {
+  jsonc: string;
+  json: string;
+};
+
+async function readConfigPair(
+  paths: ConfigPaths,
+  onParseError: (path: string) => void,
+): Promise<LoadedConfig | null> {
+  const jsoncConfig = await readConfigFile(paths.jsonc, onParseError);
+  if (jsoncConfig !== null) return { config: jsoncConfig, path: paths.jsonc };
+
+  const jsonConfig = await readConfigFile(paths.json, onParseError);
+  return jsonConfig === null ? null : { config: jsonConfig, path: paths.json };
+}
+
+function configExists(paths: ConfigPaths): boolean {
+  return existsSync(paths.jsonc) || existsSync(paths.json);
+}
+
+async function loadConfigAtLevel(
+  level: "project" | "user",
+  currentPaths: ConfigPaths,
+  legacyPaths: ConfigPaths,
+  onParseError: (path: string) => void,
+  log: Logger,
+): Promise<LoadedConfig | null> {
+  const current = await readConfigPair(currentPaths, onParseError);
+  if (current !== null) {
+    if (configExists(legacyPaths)) {
+      log(
+        `Ignoring alternate ${level} config because ${current.path} is present`,
+      );
+    }
+    return current;
+  }
+
+  const legacy = await readConfigPair(legacyPaths, onParseError);
+  if (legacy !== null) {
+    log(`Using ${level} config at ${legacy.path}`);
+  }
+  return legacy;
 }
 
 // Example Config Auto-Init
@@ -172,29 +216,42 @@ export async function loadPluginConfig(
     }
   }
 
-  const userJson = getUserConfigPath();
-  const userJsonc = getUserConfigPathJsonc();
-  const projectJson = getProjectConfigPath(directory);
-  const projectJsonc = getProjectConfigPathJsonc(directory);
+  const userPaths = {
+    jsonc: getUserConfigPath(CONFIG_FILENAME_JSONC),
+    json: getUserConfigPath(CONFIG_FILENAME),
+  };
+  const legacyUserPaths = {
+    jsonc: getUserConfigPath(LEGACY_CONFIG_FILENAME_JSONC),
+    json: getUserConfigPath(LEGACY_CONFIG_FILENAME),
+  };
+  const projectPaths = {
+    jsonc: getProjectConfigPath(directory, CONFIG_FILENAME_JSONC),
+    json: getProjectConfigPath(directory, CONFIG_FILENAME),
+  };
+  const legacyProjectPaths = {
+    jsonc: getProjectConfigPath(directory, LEGACY_CONFIG_FILENAME_JSONC),
+    json: getProjectConfigPath(directory, LEGACY_CONFIG_FILENAME),
+  };
 
-  // Project and user configs resolve in parallel. Within each level, JSONC is preferred
-  // over JSON (.then fallback) so comments are preserved in the winning file.
   const [projectConfig, userConfig] = await Promise.all([
-    readConfigFile(projectJsonc, onParseError).then(
-      (r) => r ?? readConfigFile(projectJson, onParseError),
+    loadConfigAtLevel(
+      "project",
+      projectPaths,
+      legacyProjectPaths,
+      onParseError,
+      log,
     ),
-    readConfigFile(userJsonc, onParseError).then(
-      (r) => r ?? readConfigFile(userJson, onParseError),
-    ),
+    loadConfigAtLevel("user", userPaths, legacyUserPaths, onParseError, log),
   ]);
 
-  // readConfigFile returns null for missing or malformed files — create an
-  // example config only when no valid user config was found.
-  if (userConfig === null) {
-    await createExampleConfigIfMissing(userJsonc, log);
+  if (!configExists(userPaths) && !configExists(legacyUserPaths)) {
+    await createExampleConfigIfMissing(userPaths.jsonc, log);
   }
 
-  const models = selectConfigValue(projectConfig?.models, userConfig?.models);
+  const models = selectConfigValue(
+    projectConfig?.config.models,
+    userConfig?.config.models,
+  );
   logSelected(
     "models",
     models,
@@ -203,8 +260,8 @@ export async function loadPluginConfig(
   );
 
   const imageAnalysisTool = selectConfigValue(
-    projectConfig?.imageAnalysisTool,
-    userConfig?.imageAnalysisTool,
+    projectConfig?.config.imageAnalysisTool,
+    userConfig?.config.imageAnalysisTool,
   );
   logSelected(
     "imageAnalysisTool",
@@ -214,8 +271,8 @@ export async function loadPluginConfig(
   );
 
   const promptTemplate = selectConfigValue(
-    projectConfig?.promptTemplate,
-    userConfig?.promptTemplate,
+    projectConfig?.config.promptTemplate,
+    userConfig?.config.promptTemplate,
   );
   logSelected(
     "promptTemplate",
@@ -225,14 +282,14 @@ export async function loadPluginConfig(
   );
 
   const tempDir = selectConfigValue(
-    projectConfig?.tempDir,
-    userConfig?.tempDir,
+    projectConfig?.config.tempDir,
+    userConfig?.config.tempDir,
   );
   logSelected("tempDir", tempDir, tempDir.value ?? "", null);
 
   const cleanupAfterHours = selectConfigValue(
-    projectConfig?.cleanupAfterHours,
-    userConfig?.cleanupAfterHours,
+    projectConfig?.config.cleanupAfterHours,
+    userConfig?.config.cleanupAfterHours,
   );
   logSelected(
     "cleanupAfterHours",
@@ -265,6 +322,16 @@ export function getPromptTemplate(): string | undefined {
 
 export function getTempDir(): string {
   return pluginConfig.tempDir ?? join(tmpdir(), TEMP_DIR_NAME);
+}
+
+export function getTempDirsForCleanup(): readonly string[] {
+  return [
+    ...new Set([
+      getTempDir(),
+      join(tmpdir(), TEMP_DIR_NAME),
+      join(tmpdir(), LEGACY_TEMP_DIR_NAME),
+    ]),
+  ];
 }
 
 export function getCleanupAfterHours(): number {

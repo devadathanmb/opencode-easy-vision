@@ -14,7 +14,7 @@ import {
 import { cleanupOldTempFiles } from "./cleanup.js";
 import type { Logger, Notifier } from "./types.js";
 
-export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
+export const EasyVisionPlugin: Plugin = async (input) => {
   const { client, directory } = input;
 
   const log: Logger = (msg) => {
@@ -123,4 +123,4 @@ export const MinimaxEasyVisionPlugin: Plugin = async (input) => {
   };
 };
 
-export default MinimaxEasyVisionPlugin;
+export default EasyVisionPlugin;

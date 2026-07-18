@@ -1,18 +1,19 @@
 {
-  "name": "opencode-minimax-easy-vision",
-  "version": "1.5.2",
+  "name": "opencode-easy-vision",
+  "version": "1.6.0",
   "description": "OpenCode plugin that restores the paste-and-ask workflow for text-only models by saving pasted images and injecting MCP tool instructions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
   "files": [
     "dist",
-    "opencode-minimax-easy-vision.example.jsonc",
+    "opencode-easy-vision.example.jsonc",
     "AGENT_SETUP.md",
     "CONFIGURATION.md"
   ],
   "scripts": {
-    "build": "tsc",
+    "clean": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc",
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "prepublishOnly": "npm run build",
@@ -22,6 +23,7 @@
     "opencode",
     "opencode-plugin",
     "minimax",
+    "text-only-models",
     "vision",
     "mcp",
     "image"
@@ -43,7 +45,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/devadathanmb/opencode-minimax-easy-vision"
+    "url": "https://github.com/devadathanmb/opencode-easy-vision"
   },
   "dependencies": {
     "strip-json-comments": "^5.0.3"

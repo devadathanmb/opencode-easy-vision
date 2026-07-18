@@ -8,11 +8,11 @@
     "minimax-coding-plan/*",
     "minimax-cn-coding-plan/*",
     "minimax-token-plan/*",
-    "minimax-cn-token-plan/*"
+    "minimax-cn-token-plan/*",
   ],
 
   // MCP tool name for image analysis.
-  // Format: mcp_<server-key>_<tool>
+  // Use the exact tool name OpenCode exposes.
   "imageAnalysisTool": "mcp_minimax_understand_image",
 
   // Custom prompt template. Must include at least one variable:
@@ -24,9 +24,9 @@
   "promptTemplate": null,
 
   // Directory where pasted images are saved before being passed to the MCP tool.
-  // Leave as null to use the OS temp directory + "opencode-minimax-vision/".
+  // Leave as null to use the OS temp directory + "opencode-easy-vision/".
   "tempDir": null,
 
   // Delete temp files older than this many hours on plugin startup.
-  "cleanupAfterHours": 24
+  "cleanupAfterHours": 24,
 }

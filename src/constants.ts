@@ -1,14 +1,17 @@
 // Plugin metadata
-export const PLUGIN_NAME = "minimax-easy-vision";
+export const PLUGIN_NAME = "easy-vision";
 
 // Config filenames
-export const CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
-export const CONFIG_FILENAME_JSONC = "opencode-minimax-easy-vision.jsonc";
-export const EXAMPLE_CONFIG_FILENAME =
-  "opencode-minimax-easy-vision.example.jsonc";
+export const CONFIG_FILENAME = "opencode-easy-vision.json";
+export const CONFIG_FILENAME_JSONC = "opencode-easy-vision.jsonc";
+export const LEGACY_CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
+export const LEGACY_CONFIG_FILENAME_JSONC =
+  "opencode-minimax-easy-vision.jsonc";
+export const EXAMPLE_CONFIG_FILENAME = "opencode-easy-vision.example.jsonc";
 
 // Directories and limits
-export const TEMP_DIR_NAME = "opencode-minimax-vision";
+export const TEMP_DIR_NAME = "opencode-easy-vision";
+export const LEGACY_TEMP_DIR_NAME = "opencode-minimax-vision";
 // Treat tool names longer than this as a misconfiguration — MCP tool names have a defined upper bound.
 export const MAX_TOOL_NAME_LENGTH = 256;
 
