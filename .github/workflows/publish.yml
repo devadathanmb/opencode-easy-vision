@@ -50,6 +50,6 @@ jobs:
         run: npm ci
 
       - name: Publish under next tag
-        run: npm publish --provenance --tag next
+        run: npm publish --provenance --tag next --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
