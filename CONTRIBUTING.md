@@ -4,17 +4,16 @@
 
 The plugin targets **OpenCode v2** and is tested against **2.1.4**. OpenCode v1 is not supported; the last v1-compatible release is 1.6.1. Use Node.js >=22.18.0; CI uses Node 24.
 
+Tasks run through [`just`](https://just.systems); run `just` to list them.
+
 ```sh
-npm ci
-npm run format:check
-npm run build
-npm run typecheck
-npm run test:coverage
+just install
+just check   # format check, build, type-check, tests with coverage thresholds
 ```
 
-Tests are TypeScript, run by [Vitest](https://vitest.dev) directly against `src/`, so no build is needed first. Each source module has a matching `test/<module>.test.ts`; shared fixtures live in `test/helpers.ts`. `npm run test:watch` re-runs on change, and `npm run typecheck` type-checks the tests. `npm run test:coverage` enforces the coverage thresholds in `vitest.config.ts` and writes an HTML report to `coverage/`.
+Tests are TypeScript, run by [Vitest](https://vitest.dev) directly against `src/`, so no build is needed first. Each source module has a matching `test/<module>.test.ts`; shared fixtures live in `test/helpers.ts`. `just test` runs them once (`just test config` runs only matching files), `just watch` re-runs on change, and `just typecheck` type-checks the tests. `just coverage` enforces the coverage thresholds in `vitest.config.ts` and writes an HTML report to `coverage/`.
 
-`npm run format` formats `src/` and `test/`; the Husky hook also runs it.
+`just fmt` formats `src/` and `test/`; the Husky hook also runs it.
 
 `@opencode/plugin`, `@opencode/ai` and `effect` are dev dependencies used for types and tests. At runtime the plugin imports only `effect`, which OpenCode resolves to its own copy, so the published package depends on nothing but `strip-json-comments`. Keep OpenCode imports type-only (`import type`).
 
@@ -44,14 +43,14 @@ Set `.opencode/opencode-easy-vision.jsonc` with the active model pattern and exa
 For deterministic runtime checks against the installed OpenCode binary (the runner checks for 2.1.4):
 
 ```sh
-node scripts/v2-spike/run.mjs "$PWD/dist/index.js"
+just runtime
 ```
 
 The fixture wrapper waits for catalog readiness and observes production rewriting before/after without rewriting images itself. It asserts actual outbound HTTP payloads, MCP reads, and which route the model sees in three MCP modes: `codemode: false`, `codemode: true` (tool stays behind `execute`), and unset (the plugin disables Code Mode). See the [probe docs](./scripts/v2-spike/README.md) for the isolated live OpenRouter test.
 
 ## Installed-package acceptance
 
-Use `npm pack --ignore-scripts --pack-destination <temporary-directory>`, install the tarball in a clean temporary package, and pass its absolute `dist/index.js` to the fixture runner. Also test with the real vision MCP. Verify example-config auto-init after installation. Do not publish as part of testing.
+Run `just runtime-pack`: it packs the plugin, installs the tarball into a clean temporary project, and runs the fixture against the installed entry, which proves the published dependency contract. Also test with the real vision MCP. Verify example-config auto-init after installation. Do not publish as part of testing.
 
 Plugin logs go to OpenCode's log file (`~/.local/share/opencode/log/opencode.log`, or `<home>/data/opencode/log/opencode.log` in the fixture runner's isolated home), tagged `plugin=easy-vision`. Plugin `console` output is discarded by OpenCode.
 

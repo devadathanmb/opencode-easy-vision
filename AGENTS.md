@@ -25,19 +25,23 @@ Keep this file focused on maintainer instructions for coding agents. Do not copy
 
 ## Commands
 
+Use [`just`](./justfile) for every task; run `just` to list recipes. The recipes wrap the npm scripts in `package.json`, which CI calls directly.
+
 ```bash
-npm install
-npm run format
-npm run format:check
-npm run build
-npm run typecheck
-npm test
-npm run test:coverage
+just install       # npm ci
+just fmt           # format src/ and test/
+just build
+just typecheck     # type-check src/ and test/
+just test          # Vitest; extra args pass through, e.g. `just test config`
+just coverage      # tests plus coverage thresholds
+just check         # everything CI runs: fmt-check, build, typecheck, coverage
+just runtime       # end-to-end against the installed OpenCode binary
+just runtime-pack  # same, from an npm-packed tarball in a clean project
 ```
 
-Use `npm run build` before committing code changes. CI runs install, format, build, test type-check, and tests with coverage thresholds.
+Run `just check` before committing code changes.
 
-The Husky pre-commit hook runs `npm run format`. It only formats `src/**/*.ts`.
+The Husky pre-commit hook runs `npm run format`, which formats `src/` and `test/`.
 
 ## Architecture
 
@@ -101,15 +105,14 @@ Each adapter instance owns a `createConfigStore()` with isolated accessor closur
 For code changes, run:
 
 ```bash
-npm run format:check
-npm run build
-npm run typecheck
-npm run test:coverage
+just check
 ```
+
+For changes to OpenCode runtime wiring (`src/index.ts`, hooks, packaging), also run `just runtime-pack`.
 
 Every behavior change needs a test in the matching `test/<module>.test.ts`. Do not lower coverage thresholds to make CI pass. Tests may cast to `unknown` only where OpenCode types are impractical to construct (branded IDs, the full plugin `Context`); keep such casts in `test/helpers.ts` or one documented spot per file.
 
-Run `npm run format` only when formatting changes are needed. For behavior that depends on OpenCode runtime wiring, follow the manual testing flow in [CONTRIBUTING.md](./CONTRIBUTING.md).
+Run `just fmt` only when formatting changes are needed. For behavior that depends on OpenCode runtime wiring, follow the manual testing flow in [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Releases
 
@@ -117,4 +120,4 @@ Always confirm with the user before running any release command.
 
 2.x is OpenCode v2 only. Do not publish v1 fixes from `main`.
 
-Use `npm version patch`, `npm version minor`, or `npm version major` to bump, commit, and tag. Push both the commit and tag so [.github/workflows/publish.yml](./.github/workflows/publish.yml) can publish to npm. Do not run `npm publish` manually.
+Release with `just release patch|minor|major`. It runs `just check`, then `npm version` (bump, commit, tag) and `git push --follow-tags`, so [.github/workflows/publish.yml](./.github/workflows/publish.yml) publishes to npm. The recipe asks for confirmation, but get the user's approval before running it. Do not run `npm publish` manually.
