@@ -1,10 +1,18 @@
 # OpenCode Easy Vision
 
-An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models that lack it. Paste images directly into the chat and ask questions, just like you would with Claude or GPT.
+An [OpenCode](https://opencode.ai) V2 plugin that lets text-only models work with pasted images through an MCP vision tool. It saves images and rewrites outgoing model context, not durable chat history or model capabilities.
 
 > [!IMPORTANT]
 >
-> **Renamed from `opencode-minimax-easy-vision`:** Existing users only need to replace the old package name in the `plugin` array with `opencode-easy-vision`. Existing plugin configuration continues to work; no other migration is required.
+> **Version 2.x requires OpenCode v2** (tested with 2.1.4). OpenCode v1 is no longer supported.
+>
+> **Still on OpenCode v1?** Pin the last v1-compatible release, otherwise OpenCode installs 2.x and fails to load it:
+>
+> ```json
+> { "plugin": ["opencode-easy-vision@1"] }
+> ```
+>
+> Upgrading from 1.x: your `opencode-easy-vision.json(c)` files keep working. The default tool name is now `MiniMax_understand_image`, and the old `opencode-minimax-easy-vision` config filenames are no longer read. See [Upgrading from 1.x](#upgrading-from-1x).
 
 ## Table of Contents
 
@@ -17,6 +25,7 @@ An [OpenCode](https://opencode.ai) plugin that adds **vision support** to models
 - [Configuration](#configuration)
 - [Supported Image Formats](#supported-image-formats)
 - [Troubleshooting](#troubleshooting)
+- [Upgrading from 1.x](#upgrading-from-1x)
 - [Uninstallation](#uninstallation)
 - [Contributing](#contributing)
 - [License](#license)
@@ -35,7 +44,6 @@ This plugin automates the entire workaround. It intercepts pasted images, saves 
 | <img width="100%" alt="Without plugin screenshot" src="https://github.com/user-attachments/assets/eb5c76ce-e1a6-4ad0-aa51-58ce5e8efd8f" /> | <img width="100%" alt="With plugin screenshot" src="https://github.com/user-attachments/assets/b5bcaac4-8ac8-48eb-90cb-59630c26f4e1" /> |
 | The image is silently ignored by the model. | The model analyzes the attached image correctly before answering. |
 
-
 https://github.com/user-attachments/assets/da7d8618-5de1-4a00-9250-a91493e3ea16
 
 https://github.com/user-attachments/assets/fdb68339-b95b-46eb-90d4-ac2dbc0f436e
@@ -53,12 +61,14 @@ The plugin works with any MCP server that can analyze an image from a local path
 ```json
 {
   "mcp": {
-    "MiniMax": {
-      "type": "local",
-      "command": ["uvx", "minimax-coding-plan-mcp"],
-      "environment": {
-        "MINIMAX_API_KEY": "your-api-key-here",
-        "MINIMAX_API_HOST": "https://api.minimax.io"
+    "servers": {
+      "MiniMax": {
+        "type": "local",
+        "command": ["uvx", "minimax-coding-plan-mcp"],
+        "environment": {
+          "MINIMAX_API_KEY": "{env:MINIMAX_API_KEY}",
+          "MINIMAX_API_HOST": "https://api.minimax.io"
+        }
       }
     }
   }
@@ -72,12 +82,14 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 ```json
 {
   "mcp": {
-    "openrouter_image": {
-      "type": "local",
-      "command": ["npx", "openrouter-image-mcp"],
-      "environment": {
-        "OPENROUTER_API_KEY": "your-api-key-here",
-        "OPENROUTER_MODEL": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    "servers": {
+      "openrouter_image": {
+        "type": "local",
+        "command": ["npx", "openrouter-image-mcp"],
+        "environment": {
+          "OPENROUTER_API_KEY": "{env:OPENROUTER_API_KEY}",
+          "OPENROUTER_MODEL": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+        }
       }
     }
   }
@@ -92,30 +104,28 @@ Routes image analysis through OpenRouter, giving you access to any vision-capabl
 >
 > Any MCP server with an image analysis tool will work. The servers above are examples. For a different tool, set `imageAnalysisTool`; see [Configuration](#configuration).
 
+> [!NOTE]
+>
+> OpenCode v2 exposes MCP tools through **Code Mode** by default, where the model can only reach them by writing code for an `execute` tool. The plugin turns Code Mode off for the one server that provides `imageAnalysisTool` so the model can call it directly. Other servers are untouched, and an explicit `codemode` setting on that server always wins. Set `disableCodeMode: false` in the plugin config to opt out.
+
 #### 2. Install the plugin
 
-**With the OpenCode CLI (v1.3.4+):**
-
-Global (all projects):
+Install globally with the OpenCode CLI:
 
 ```bash
-opencode plugin opencode-easy-vision --global
+opencode plugin add opencode-easy-vision
 ```
 
-Project-level (current directory only):
-
-```bash
-opencode plugin opencode-easy-vision
-```
-
-**Or manually,** add it to the `plugin` array in your `opencode.json`:
+Or add it to the `plugins` array of a global or project `opencode.json`:
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-easy-vision"]
+  "plugins": ["opencode-easy-vision"]
 }
 ```
+
+To work on a local checkout, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ---
 
@@ -157,7 +167,7 @@ Each option uses the following priority order:
 1. **Project level**: `.opencode/opencode-easy-vision.json` (or `.jsonc`)
 2. **User level**: `~/.config/opencode/opencode-easy-vision.json` (or `.jsonc`)
 
-On first load, an example config is created at `~/.config/opencode/opencode-easy-vision.jsonc`. See [CONFIGURATION.md](./CONFIGURATION.md) for config precedence, legacy config support, and the full option reference.
+On first load, an example config is created at `~/.config/opencode/opencode-easy-vision.jsonc`. See [CONFIGURATION.md](./CONFIGURATION.md) for config precedence and the full option reference.
 
 ## Supported Image Formats
 
@@ -165,21 +175,30 @@ PNG, JPEG, and WebP. Exact format support depends on the image analysis tool you
 
 ## Troubleshooting
 
-**Plugin not updating after a new release?**
+**Plugin not updating?** Use `opencode plugin list`, `opencode plugin check`, and `opencode plugin update`. Watched config changes reload automatically; unwatched local dependencies may require `opencode service restart`. Restarting the terminal alone does not restart server plugins. Do not delete cache directories as the normal update flow.
 
-OpenCode caches plugins under `~/.cache/opencode/packages/`. If it's still running an old version after a release, clear the cache entry and restart:
+**Tool unavailable?** OpenCode names MCP tools `<server>_<tool>`, so the `MiniMax` example server exposes `MiniMax_understand_image`. Check that `imageAnalysisTool` matches exactly, that the server is connected, and that permissions allow the tool. A server can report connected shortly before its tools are registered. If you keep Code Mode on for the vision server, the plugin tells the model to reach the tool through `execute` instead. The plugin never calls tools itself or bypasses permissions.
 
-```bash
-rm -rf ~/.cache/opencode/packages/opencode-easy-vision@latest
-```
+**Where are the logs?** In OpenCode's log file (`~/.local/share/opencode/log/opencode.log` by default), tagged `plugin=easy-vision`. Image failures are also written into the model's context so the model can tell you about them.
+
+**Remote clients or MCPs?** Generated paths are on the OpenCode server host. Containers and remote MCP servers need a shared filesystem or usable HTTP image URLs.
+
+**Older images and auxiliary requests?** Matching requests replace images across retained user history. Only the current task gets analysis instructions; older turns and compaction/title/transient generation get neutral paths or failure text. PNG/JPEG/WebP are supported; other image formats/provider refs fail explicitly without sending raw images to the text model. Unrelated PDFs/audio and all original text remain intact.
 
 **Plugin not activating?**
 
 By default, the plugin only activates for MiniMax provider models, with IDs matching `minimax/*`, `minimax-cn/*`, and related patterns. It does not activate for a MiniMax model accessed through OpenRouter or another provider. To use the plugin with a different model or provider, add the model's ID pattern to `models` in your config. See [CONFIGURATION.md](./CONFIGURATION.md).
 
+## Upgrading from 1.x
+
+1. Make sure you are on OpenCode v2. Your existing `"plugin": ["opencode-easy-vision"]` entry keeps working; `"plugins": ["opencode-easy-vision"]` is the native v2 form.
+2. Move your MCP server under `mcp.servers` (OpenCode v2's format). OpenCode also accepts the v1 layout.
+3. If you set `imageAnalysisTool` to `mcp_minimax_understand_image`, change it to the name OpenCode v2 actually exposes, `MiniMax_understand_image` for the example server, or remove it to use the new default.
+4. If you still use `opencode-minimax-easy-vision.json(c)` config files, rename them to `opencode-easy-vision.json(c)`. The old names are no longer read.
+
 ## Uninstallation
 
-1. Remove `opencode-easy-vision` from the `plugin` array in the `opencode.json` file where you installed it.
+1. Remove the package from the `plugins` array where configured (or use `opencode plugin remove <package>` for global package installations).
 
 2. Delete the plugin config files you no longer need:
 
@@ -188,7 +207,7 @@ rm -f ~/.config/opencode/opencode-easy-vision.{json,jsonc}
 rm -f .opencode/opencode-easy-vision.{json,jsonc}
 ```
 
-If you migrated from `opencode-minimax-easy-vision` and no longer use it, you can also delete its legacy config files.
+Saved images live in your OS temp directory under `opencode-easy-vision/` (or your configured `tempDir`) and are cleaned up automatically.
 
 ## Contributing
 
@@ -201,6 +220,6 @@ AGPL-3.0. See [LICENSE](./LICENSE).
 ## References
 
 - [OpenCode Official Website](https://opencode.ai)
-- [OpenCode Plugins Documentation](https://opencode.ai/docs/plugins/)
+- [OpenCode V2 Plugins Documentation](https://opencode.ai/v2/docs/build/plugins)
 - [MiniMax Coding Plan MCP Repository](https://github.com/MiniMax-AI/MiniMax-Coding-Plan-MCP)
 - [openrouter-image-mcp Repository](https://github.com/JonathanJude/openrouter-image-mcp)

@@ -2,19 +2,23 @@
 
 Set up the `opencode-easy-vision` OpenCode plugin. Read existing configuration before editing it, and update keys in place instead of replacing whole files.
 
+This plugin version (2.x) requires **OpenCode v2**.
+
 ---
 
 ## Pre-flight — read context before editing
 
 Before editing any files, do all of the following:
 
-1. **Fetch the full configuration reference** and keep it available throughout this session: `https://raw.githubusercontent.com/devadathanmb/opencode-easy-vision/main/CONFIGURATION.md`
+1. **Check the OpenCode version:** Run `opencode --version`. If it is 1.x, stop and tell the user that this plugin version needs OpenCode v2; on OpenCode v1 they must use `"plugin": ["opencode-easy-vision@1"]` instead, configured as described in the 1.x README.
 
-2. **Inspect the existing OpenCode config:** Check `~/.config/opencode/opencode.json` and `.jsonc`, then check the `opencode.json` and `.jsonc` files that apply to the current project.
+2. **Fetch the full configuration reference** and keep it available throughout this session: `https://raw.githubusercontent.com/devadathanmb/opencode-easy-vision/main/CONFIGURATION.md`
 
-   Note whether the `mcp` block exists, what keys it already has, and whether `"opencode-easy-vision"` is already in the `plugin` array.
+3. **Inspect the existing OpenCode config:** Check `~/.config/opencode/opencode.json` and `.jsonc`, then check the `opencode.json` and `.jsonc` files that apply to the current project.
 
-3. **Inspect plugin config files:** Check existing `.json` and `.jsonc` files at `~/.config/opencode/opencode-easy-vision.*` and `.opencode/opencode-easy-vision.*`. Also note any legacy `opencode-minimax-easy-vision` config files.
+   Note whether the `mcp` block exists and which servers it defines (OpenCode v2 uses `mcp.servers`; the older layout with servers directly under `mcp` is still accepted), and whether `"opencode-easy-vision"` is already in the `plugins` array or the older `plugin` array.
+
+4. **Inspect plugin config files:** Check existing `.json` and `.jsonc` files at `~/.config/opencode/opencode-easy-vision.*` and `.opencode/opencode-easy-vision.*`. If you find `opencode-minimax-easy-vision.json(c)` files, tell the user they are no longer read and offer to rename them to `opencode-easy-vision.json(c)`. If an existing config sets `imageAnalysisTool` to `mcp_minimax_understand_image` (the 1.x default), it must be updated in Question 4.
 
    Note the current values of `models` and `imageAnalysisTool`. Do not create a plugin config file unless the chosen options require one.
 
@@ -49,39 +53,39 @@ Ask the user:
 
 **If they choose 1 (MiniMax Coding Plan MCP):**
 
-Ask for their MiniMax API key. They can create one at https://platform.minimax.io. Before writing it, tell them the key will be stored in the selected OpenCode config and ask for confirmation.
+Ask for their MiniMax API key. They can create one at https://platform.minimax.io. Offer two ways to supply it: an environment variable referenced as `{env:MINIMAX_API_KEY}` (recommended), or the key written directly into the selected OpenCode config. If they choose the latter, tell them the key will be stored in that file and ask for confirmation.
 
-Add or update the `MiniMax` entry in the selected OpenCode config's `mcp` block:
+Add or update the `MiniMax` entry under `mcp.servers` in the selected OpenCode config:
 
 ```json
 "MiniMax": {
   "type": "local",
   "command": ["uvx", "minimax-coding-plan-mcp"],
   "environment": {
-    "MINIMAX_API_KEY": "<their key>",
+    "MINIMAX_API_KEY": "{env:MINIMAX_API_KEY}",
     "MINIMAX_API_HOST": "https://api.minimax.io"
   }
 }
 ```
 
-Tool name to use in plugin config: **`mcp_minimax_understand_image`**.
+Tool name to use in plugin config: **`MiniMax_understand_image`** (the default).
 
 ---
 
 **If they choose 2 (openrouter-image-mcp):**
 
-Ask for their OpenRouter API key. They can create one at https://openrouter.ai/keys. Before writing it, tell them the key will be stored in the selected OpenCode config and ask for confirmation.
+Ask for their OpenRouter API key. They can create one at https://openrouter.ai/keys. As with MiniMax, offer `{env:OPENROUTER_API_KEY}` (recommended) or storing the key in the selected OpenCode config, and confirm before writing a key to a file.
 
 Ask which vision model they want to use. If unsure, recommend `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, a free multimodal model designed for image perception and reasoning. Free model availability changes over time, so check [OpenRouter's free models](https://openrouter.ai/models?fmt=cards&max_price=0) for current alternatives and explain that free endpoints use shared capacity, so latency and availability can vary.
 
-Add or update the `openrouter_image` entry in the selected OpenCode config's `mcp` block:
+Add or update the `openrouter_image` entry under `mcp.servers` in the selected OpenCode config:
 
 ```json
 "openrouter_image": {
   "type": "local",
   "command": ["npx", "openrouter-image-mcp"],
   "environment": {
-    "OPENROUTER_API_KEY": "<their key>",
+    "OPENROUTER_API_KEY": "{env:OPENROUTER_API_KEY}",
     "OPENROUTER_MODEL": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
   }
 }
@@ -95,12 +99,14 @@ Tool name to use in plugin config: **`openrouter_image_analyze_image`**.
 
 Ask the user to describe the tool or provide its name or repo URL. Fetch its documentation to find:
 
-- The correct `mcp` block entry for `opencode.json`
-- The exact tool name the server exposes (look for function/tool definitions in the README or source)
+- The correct `mcp.servers` entry for `opencode.json`
+- The exact name of the image-analysis tool the server defines (look for function/tool definitions in the README or source)
 
-Add or update the entry in the `mcp` block, checking first whether the block already exists.
+Add or update the entry under `mcp.servers`, checking first whether the block already exists.
 
-Use the exact tool name OpenCode exposes. Do not construct the name from the MCP server key.
+OpenCode exposes the tool as `<server key>_<tool name>`, with characters other than letters, digits, `_` and `-` in the server key replaced by `_`. For server key `vision` and tool `describe_image`, the name is `vision_describe_image`. Names are case-sensitive.
+
+Do not set `codemode` on this server: the plugin turns OpenCode's MCP Code Mode off for it automatically so the model can call the tool directly.
 
 ---
 
@@ -150,9 +156,10 @@ For all options except 1: update the `models` key in the selected plugin config.
 
 ## Question 4 — MCP tool name
 
-This step is only needed if the tool name is **not** `mcp_minimax_understand_image` (the built-in default).
+The plugin config's `imageAnalysisTool` must end up equal to the tool name from Question 2. Check the selected scope's plugin config, and also any config at the other scope that would override it:
 
-If the tool name from Question 2 differs from the default, add or update `imageAnalysisTool` in the selected plugin config:
+- **Tool name is `MiniMax_understand_image` (the built-in default):** no `imageAnalysisTool` is needed. If an existing config sets `imageAnalysisTool` to anything else, including the 1.x default `mcp_minimax_understand_image`, remove that key (or set it to `MiniMax_understand_image`).
+- **Any other tool name:** add or update `imageAnalysisTool` in the selected plugin config:
 
 ```jsonc
 {
@@ -160,21 +167,21 @@ If the tool name from Question 2 differs from the default, add or update `imageA
 }
 ```
 
-Check whether the file already exists. If it does, update the `imageAnalysisTool` key in place. If not, create `opencode-easy-vision.jsonc` at the selected scope.
-
-If the tool name is `mcp_minimax_understand_image`, skip this step.
+If the plugin config file already exists, update the key in place. If not, create `opencode-easy-vision.jsonc` at the selected scope.
 
 ---
 
 ## Step 5 — Add the plugin
 
-Check whether `"opencode-easy-vision"` is already in the selected OpenCode config's `plugin` array. If it is, skip this step. If not, add it:
+Check whether `"opencode-easy-vision"` is already in the selected OpenCode config's `plugins` array, or in an older `plugin` array (OpenCode v2 still reads it). If it is, skip this step. If it is pinned to a 1.x version (for example `opencode-easy-vision@1`), remove the pin. If it is missing, add it to `plugins`:
 
 ```json
 {
-  "plugin": ["opencode-easy-vision"]
+  "plugins": ["opencode-easy-vision"]
 }
 ```
+
+For the all-projects scope you can instead run `opencode plugin add opencode-easy-vision`.
 
 ---
 
@@ -185,13 +192,14 @@ Before asking the user to restart, show them a brief summary of every change you
 - Which OpenCode config was updated (MCP entry, plugin array)
 - Which plugin config was updated and what was written to it (`models`, `imageAnalysisTool`), or note if no plugin config was needed
 
-Then tell the user to **restart OpenCode**.
+Then tell the user to **restart OpenCode**. OpenCode v2 runs plugins in a background service: if the plugin does not load after restarting the terminal, ask the user to run `opencode service restart`. Do not restart the service yourself without their approval.
 
-After they restart, ask them to paste an image (`Cmd+V` / `Ctrl+V`) into the chat with the configured model selected and send a message. The model should call the MCP tool and return an image analysis.
+After they restart, ask them to paste an image (`Cmd+V` / `Ctrl+V`) into the chat with the configured model selected and send a message. The model should call the MCP tool and return an image analysis. Only a completed tool call counts as success; text that merely looks like a tool call does not.
 
 **If it doesn't work, check in order:**
 
-1. Is the MCP tool name in `imageAnalysisTool` exactly the name OpenCode exposes?
+1. Is the MCP tool name in `imageAnalysisTool` exactly the name OpenCode exposes (`<server key>_<tool name>`, case-sensitive)? Is the MCP server connected?
 2. Does the model ID match the configured `models` pattern? Remember: OpenRouter-served models won't match `minimax/*` even if the underlying model is from MiniMax.
 3. Is the API key set correctly in the MCP environment block in the selected OpenCode config?
-4. If in doubt, re-read `https://raw.githubusercontent.com/devadathanmb/opencode-easy-vision/main/CONFIGURATION.md` for the full option reference.
+4. Check OpenCode's log (`~/.local/share/opencode/log/opencode.log` by default) for lines tagged `plugin=easy-vision`.
+5. If in doubt, re-read `https://raw.githubusercontent.com/devadathanmb/opencode-easy-vision/main/CONFIGURATION.md` for the full option reference.

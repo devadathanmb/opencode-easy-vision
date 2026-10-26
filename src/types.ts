@@ -4,21 +4,48 @@ export interface PluginConfig {
   promptTemplate?: string;
   tempDir?: string;
   cleanupAfterHours?: number;
+  disableCodeMode?: boolean;
 }
 
 export interface SavedImage {
   path: string;
   mime: string;
-  partId: string; // ID of the original FilePart, used to remove it from the message after injection
 }
+
+export type ImageSource =
+  | { type: "bytes"; data: Uint8Array; mediaType: string }
+  | { type: "base64"; data: string; mediaType: string }
+  | { type: "url"; url: string; mediaType?: string; expiresAt?: number }
+  | { type: "ref"; provider: string; id: string; mediaType?: string };
+
+export interface ImageAttachment {
+  mime: string;
+  source: ImageSource;
+  requiresHeaders?: boolean;
+}
+
+export type ImageResult =
+  | { ok: true; image: SavedImage }
+  | { ok: false; reason: string };
+
+export interface ConfigAccessors {
+  getConfiguredModels(): readonly string[];
+  getImageAnalysisTool(): string;
+  getPromptTemplate(): string | undefined;
+  getTempDir(): string;
+  getTempDirsForCleanup(): readonly string[];
+  getCleanupAfterHours(): number;
+  getDisableCodeMode(): boolean;
+}
+
+export type ToolRoute = "direct" | "codemode" | "unavailable";
 
 export interface ModelInfo {
   providerID: string;
   modelID: string;
 }
 
-// Logger writes to the app's structured log (silent to the user).
-// Notifier surfaces visible toast messages for errors the user should act on.
+// Server logging is UI-independent; request text also carries actionable failures.
 export type Logger = (msg: string) => void;
 
 export type Notifier = {

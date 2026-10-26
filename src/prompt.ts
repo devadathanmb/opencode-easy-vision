@@ -1,63 +1,41 @@
+import type { ConfigAccessors, SavedImage, ToolRoute } from "./types.js";
 import {
   DEFAULT_PROMPT_TEMPLATE_MULTIPLE,
   DEFAULT_PROMPT_TEMPLATE_SINGLE,
 } from "./constants.js";
-import { getPromptTemplate } from "./config.js";
-import type { SavedImage } from "./types.js";
 
-// Since the target model doesn't natively understand image attachments,
-// we replace them with text instructions that tell the model to use an
-// MCP tool (e.g., understand_image) with the file path or URL.
-// The user's original text is preserved as "User's request: ...".
-
-function applyPromptTemplate(
-  template: string,
-  vars: {
-    imageList: string;
-    imageCount: number;
-    toolName: string;
-    userText: string;
-  },
-): string {
-  return template
-    .replace(/\{imageList\}/g, vars.imageList)
-    .replace(/\{imageCount\}/g, String(vars.imageCount))
-    .replace(/\{toolName\}/g, vars.toolName)
-    .replace(/\{userText\}/g, vars.userText);
-}
-
-export function generateInjectionPrompt(
-  images: SavedImage[],
-  userText: string,
-  toolName: string,
-): string {
-  if (images.length === 0) return userText;
-
-  const imageList = images
-    .map((img, idx) => `- Image ${idx + 1}: ${img.path}`)
-    .join("\n");
-
-  const customTemplate = getPromptTemplate();
-  if (customTemplate !== undefined) {
-    return applyPromptTemplate(customTemplate, {
+export function createPromptGenerator(config: ConfigAccessors) {
+  return (
+    images: readonly SavedImage[],
+    userText: string,
+    route: ToolRoute,
+  ): string => {
+    const toolName = config.getImageAnalysisTool();
+    const imageList = images
+      .map((image, index) => `- Image ${index + 1}: ${image.path}`)
+      .join("\n");
+    if (route === "unavailable") {
+      return `Saved image context:\n${imageList}\nEasy Vision: ${toolName} is not available for this request. Connect the vision MCP and allow its tool (or execute for Code Mode). Do not claim to have analyzed the images.`;
+    }
+    const template =
+      config.getPromptTemplate() ??
+      (images.length === 1
+        ? DEFAULT_PROMPT_TEMPLATE_SINGLE
+        : DEFAULT_PROMPT_TEMPLATE_MULTIPLE);
+    const variables: Record<string, string> = {
       imageList,
-      imageCount: images.length,
+      imageCount: String(images.length),
       toolName,
-      userText,
-    });
-  }
-
-  const isSingle = images.length === 1;
-  const template = isSingle
-    ? DEFAULT_PROMPT_TEMPLATE_SINGLE
-    : DEFAULT_PROMPT_TEMPLATE_MULTIPLE;
-
-  return applyPromptTemplate(template, {
-    imageList,
-    imageCount: images.length,
-    toolName,
-    // When the user pastes an image with no accompanying text, {userText} would be
-    // blank, leaving the model without any instruction. Fall back to a sensible default.
-    userText: userText || "(analyze the image)",
-  });
+      userText: userText || "(analyze the image)",
+    };
+    const prompt = template.replace(
+      /\{(imageList|imageCount|toolName|userText)\}/g,
+      (_, name: string) => variables[name],
+    );
+    const routing =
+      route === "codemode"
+        ? `\nThis MCP tool is exposed through Code Mode, not as a direct function. Use execute and its search/catalog facilities to discover the exact ${toolName} tool and signature, then invoke it through the returned tools catalog. Do not guess the namespace or bypass permissions.`
+        : "";
+    return `${prompt}${routing}\nReuse any image analysis already present in this conversation; do not repeat completed analysis.`;
+  };
 }

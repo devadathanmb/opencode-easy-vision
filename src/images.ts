@@ -1,162 +1,156 @@
-import type { Part, FilePart } from "@opencode-ai/sdk";
+import type {
+  ConfigAccessors,
+  ImageAttachment,
+  ImageResult,
+  Logger,
+} from "./types.js";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  access,
+  lstat,
+  mkdir,
+  rename,
+  unlink,
+  utimes,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
-import { mkdir, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { SUPPORTED_MIME_TYPES, MIME_TO_EXTENSION } from "./constants.js";
-import { getTempDir } from "./config.js";
-import type { SavedImage, Logger, Notifier } from "./types.js";
+import { MIME_TO_EXTENSION, SUPPORTED_MIME_TYPES } from "./constants.js";
+import { withFileLock } from "./file-lock.js";
 
-// Type Guards
-//
-// Messages in OpenCode contain "parts" - an array of different content types:
-// - TextPart: The user's typed text
-// - FilePart: Attached files (images, PDFs, etc.) with mime type and URL
-
-export function isImageFilePart(part: Part): part is FilePart {
-  if (part.type !== "file") return false;
-  const mime = (part as FilePart).mime?.toLowerCase() ?? "";
-  return SUPPORTED_MIME_TYPES.has(mime);
+export function normalizeMime(mime: string): string {
+  return mime.split(";", 1)[0].trim().toLowerCase();
 }
 
-// URL Handlers
-//
-// Images can arrive via different URL schemes:
-// - file://  → Already on disk, just need the local path
-// - data:    → Base64-encoded, must decode and save to temp file
-// - http(s): → Remote URL, pass through for MCP tool to fetch directly
-
-function handleFileUrl(
-  url: string,
-  filePart: FilePart,
-  log: Logger,
-): SavedImage {
-  const localPath = fileURLToPath(url);
-  log(`Image already on disk: ${localPath}`);
-  return { path: localPath, mime: filePart.mime, partId: filePart.id };
-}
-
-function parseBase64DataUrl(
-  dataUrl: string,
-): { mime: string; data: Buffer } | null {
-  const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/);
-  if (!match) return null;
-
-  try {
-    return { mime: match[1], data: Buffer.from(match[2], "base64") };
-  } catch {
-    return null;
+export function decodeBase64(value: string): Buffer {
+  const text = value.replace(/\s/g, "");
+  if (
+    !text ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(text) ||
+    text.length % 4 === 1 ||
+    (text.includes("=") && text.length % 4 !== 0)
+  ) {
+    throw new Error("Malformed base64 image data");
   }
+  const bytes = Buffer.from(text, "base64");
+  if (
+    !bytes.length ||
+    bytes.toString("base64").replace(/=+$/, "") !== text.replace(/=+$/, "")
+  ) {
+    throw new Error("Malformed base64 image data");
+  }
+  return bytes;
 }
 
-async function handleDataUrl(
-  url: string,
-  filePart: FilePart,
-  log: Logger,
-  notify: Notifier,
-): Promise<SavedImage | null> {
-  // Pasted clipboard images arrive as base64 data URLs.
-  // Decode and save to a temp file so the MCP tool can read it.
-  const parsed = parseBase64DataUrl(url);
-  if (!parsed) {
-    log(`Failed to parse data URL for part ${filePart.id}`);
-    return null;
-  }
-
+// The name is a content hash, but the directory may be shared (e.g. /tmp on
+// Linux): only trust a regular file we own with the expected size. Anything else,
+// including a planted symlink, is atomically replaced by the rename below.
+async function isReusable(path: string, size: number): Promise<boolean> {
   try {
-    const savedPath = await saveImageToTemp(
-      parsed.data,
-      filePart.mime,
-      filePart.id,
+    const stats = await lstat(path);
+    return (
+      stats.isFile() &&
+      stats.size === size &&
+      stats.uid === (process.getuid?.() ?? stats.uid)
     );
-    log(`Saved image to: ${savedPath}`);
-    return { path: savedPath, mime: filePart.mime, partId: filePart.id };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    log(`Failed to save image: ${msg}`);
-    notify.error(`Could not save image to disk: ${msg}`, "Easy Vision");
-    return null;
+  } catch {
+    return false;
   }
 }
 
-function handleHttpUrl(
-  url: string,
-  filePart: FilePart,
-  log: Logger,
-): SavedImage {
-  // Remote URLs are passed directly to the MCP tool, which can fetch them itself.
-  log(`Image is remote URL: ${url}`);
-  return { path: url, mime: filePart.mime, partId: filePart.id };
-}
-
-// File Operations
-
-function getExtensionForMime(mime: string): string {
-  // PNG fallback: unknown MIME types are saved as .png so the file is always
-  // openable, even if the extension doesn't perfectly match the content.
-  return MIME_TO_EXTENSION[mime.toLowerCase()] ?? "png";
-}
-
-async function ensureTempDir(): Promise<string> {
-  const dir = getTempDir();
-  await mkdir(dir, { recursive: true });
-  return dir;
-}
-
-async function saveImageToTemp(
-  data: Buffer,
+async function persist(
+  bytes: Uint8Array,
   mime: string,
-  partId: string,
+  directory: string,
 ): Promise<string> {
-  const tempDir = await ensureTempDir();
-  // OpenCode reruns message transforms after tool calls. A stable name keeps every
-  // pass for the same attachment pointed at the path already shown to the model.
-  const fileId = createHash("sha256").update(partId).digest("hex");
-  const filename = `${fileId}.${getExtensionForMime(mime)}`;
-  const filepath = join(tempDir, filename);
-  await writeFile(filepath, data);
-  return filepath;
+  if (!bytes.length) throw new Error("Empty image data");
+  const hash = createHash("sha256")
+    .update(mime)
+    .update("\0")
+    .update(bytes)
+    .digest("hex");
+  const path = join(directory, `${hash}.${MIME_TO_EXTENSION[mime]}`);
+  await withFileLock(path, async () => {
+    // Every request replays the whole history, so most saves hit an existing file.
+    if (await isReusable(path, bytes.length)) {
+      // Refresh mtime so startup cleanup never deletes a file that is in use.
+      const now = new Date();
+      await utimes(path, now, now);
+      return;
+    }
+    await mkdir(directory, { recursive: true });
+    const staging = `${path}.writing-${randomUUID()}`;
+    try {
+      await writeFile(staging, bytes, { mode: 0o600 });
+      await rename(staging, path);
+    } finally {
+      await unlink(staging).catch(() => {});
+    }
+  });
+  return path;
 }
 
-// Main Processor
-
-async function processImagePart(
-  filePart: FilePart,
-  log: Logger,
-  notify: Notifier,
-): Promise<SavedImage | null> {
-  const url = filePart.url;
-
-  if (!url) {
-    log(`Skipping image part ${filePart.id}: no URL`);
-    return null;
-  }
-
-  if (url.startsWith("file://")) {
-    return handleFileUrl(url, filePart, log);
-  }
-
-  if (url.startsWith("data:")) {
-    return handleDataUrl(url, filePart, log, notify);
-  }
-
-  if (url.startsWith("http://") || url.startsWith("https://")) {
-    return handleHttpUrl(url, filePart, log);
-  }
-
-  log(`Unsupported URL scheme for part ${filePart.id}: ${url.slice(0, 50)}...`);
-  return null;
-}
-
-export async function extractImagesFromParts(
-  parts: Part[],
-  log: Logger,
-  notify: Notifier,
-): Promise<SavedImage[]> {
-  const results = await Promise.all(
-    parts
-      .filter(isImageFilePart)
-      .map((part) => processImagePart(part, log, notify)),
-  );
-  return results.filter((r): r is SavedImage => r !== null);
+export function createImageProcessor(config: ConfigAccessors, log: Logger) {
+  return async (attachment: ImageAttachment): Promise<ImageResult> => {
+    const mime = normalizeMime(attachment.mime);
+    try {
+      if (!SUPPORTED_MIME_TYPES.has(mime))
+        throw new Error(`Unsupported image format (${mime})`);
+      const source = attachment.source;
+      let path: string;
+      switch (source.type) {
+        case "bytes":
+          path = await persist(source.data, mime, config.getTempDir());
+          break;
+        case "base64":
+          path = await persist(
+            decodeBase64(source.data),
+            mime,
+            config.getTempDir(),
+          );
+          break;
+        case "ref":
+          throw new Error(
+            "Provider image reference cannot be resolved; attach the original image instead",
+          );
+        case "url": {
+          if (attachment.requiresHeaders)
+            throw new Error(
+              "Image URL requires private headers; attach the image bytes instead",
+            );
+          if (source.expiresAt !== undefined && source.expiresAt <= Date.now())
+            throw new Error("Image URL has expired; attach the image again");
+          const url = new URL(source.url);
+          if (url.protocol === "file:") {
+            path = fileURLToPath(url);
+            await access(path);
+          } else if (url.protocol === "http:" || url.protocol === "https:") {
+            path = source.url;
+          } else if (url.protocol === "data:") {
+            const match = source.url.match(/^data:([^;,]+);base64,([\s\S]*)$/i);
+            if (!match || normalizeMime(match[1]) !== mime)
+              throw new Error("Malformed or mismatched image data URL");
+            path = await persist(
+              decodeBase64(match[2]),
+              mime,
+              config.getTempDir(),
+            );
+          } else {
+            throw new Error("Unsupported image URL scheme");
+          }
+          break;
+        }
+      }
+      return { ok: true, image: { path, mime } };
+    } catch (error) {
+      // Never log payloads, source URLs, private headers, or I/O error details.
+      const reason =
+        error instanceof Error && !("code" in error)
+          ? error.message
+          : "Could not save/read the image; check the server temp directory and permissions";
+      log(`Image processing failed: ${reason}`);
+      return { ok: false, reason };
+    }
+  };
 }
