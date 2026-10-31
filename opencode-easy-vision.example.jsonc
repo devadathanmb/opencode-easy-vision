@@ -13,7 +13,8 @@
 
   // MCP tool name for image analysis.
   // Use the exact tool name OpenCode exposes.
-  "imageAnalysisTool": "mcp_minimax_understand_image",
+  // OpenCode names MCP tools <server>_<tool>, e.g. server "MiniMax" + tool "understand_image".
+  "imageAnalysisTool": "MiniMax_understand_image",
 
   // Custom prompt template. Must include at least one variable:
   //   {imageList}  — newline-separated "- Image N: /path"
@@ -23,10 +24,14 @@
   // Leave as null to use the built-in default template.
   "promptTemplate": null,
 
-  // Directory where pasted images are saved before being passed to the MCP tool.
+  // Directory where pasted images are saved; the MCP server must be able to read it.
   // Leave as null to use the OS temp directory + "opencode-easy-vision/".
   "tempDir": null,
 
   // Delete temp files older than this many hours on plugin startup.
   "cleanupAfterHours": 24,
+
+  // Turn off OpenCode's MCP Code Mode for the server providing imageAnalysisTool,
+  // so the model can call it directly. A codemode value set on that server wins.
+  "disableCodeMode": true,
 }

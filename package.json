@@ -4,8 +4,16 @@
   "description": "OpenCode plugin that restores the paste-and-ask workflow for text-only models by saving pasted images and injecting MCP tool instructions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "type": "module",
   "files": [
+    "index.js",
     "dist",
     "opencode-easy-vision.example.jsonc",
     "AGENT_SETUP.md",
@@ -14,10 +22,15 @@
   "scripts": {
     "clean": "node --eval \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "build": "npm run clean && tsc",
-    "format": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts",
+    "test": "vitest run",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"vitest*.config.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"test/**/*.ts\" \"vitest*.config.ts\"",
     "prepublishOnly": "npm run build",
-    "prepare": "husky"
+    "prepare": "husky",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "typecheck": "tsc -p tsconfig.test.json"
   },
   "keywords": [
     "opencode",
@@ -31,17 +44,18 @@
   "author": "Devadathan M B <devadathanmb@gmail.com>",
   "license": "AGPL-3.0",
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.2.26",
+    "@opencode/ai": "^2.1.4",
+    "@opencode/plugin": "^2.1.4",
     "@types/node": "^25.0.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "effect": "^4.0.1",
     "husky": "^9.1.7",
     "prettier": "^3.8.1",
-    "typescript": "^5.7.0"
-  },
-  "peerDependencies": {
-    "@opencode-ai/plugin": ">=1.0.0"
+    "typescript": "^5.7.0",
+    "vitest": "^5.0.5"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.18.0"
   },
   "repository": {
     "type": "git",
@@ -49,5 +63,13 @@
   },
   "dependencies": {
     "strip-json-comments": "^5.0.3"
+  },
+  "peerDependencies": {
+    "effect": "^4.0.1"
+  },
+  "peerDependenciesMeta": {
+    "effect": {
+      "optional": true
+    }
   }
 }

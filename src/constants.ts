@@ -2,16 +2,13 @@
 export const PLUGIN_NAME = "easy-vision";
 
 // Config filenames
-export const CONFIG_FILENAME = "opencode-easy-vision.json";
-export const CONFIG_FILENAME_JSONC = "opencode-easy-vision.jsonc";
-export const LEGACY_CONFIG_FILENAME = "opencode-minimax-easy-vision.json";
-export const LEGACY_CONFIG_FILENAME_JSONC =
-  "opencode-minimax-easy-vision.jsonc";
+export const CONFIG_FILENAME = "opencode-easy-vision.jsonc";
+// Also read by 1.x. 2.x ignores it and only checks for it, to log a rename hint.
+export const REMOVED_CONFIG_FILENAME = "opencode-easy-vision.json";
 export const EXAMPLE_CONFIG_FILENAME = "opencode-easy-vision.example.jsonc";
 
 // Directories and limits
 export const TEMP_DIR_NAME = "opencode-easy-vision";
-export const LEGACY_TEMP_DIR_NAME = "opencode-minimax-vision";
 // Treat tool names longer than this as a misconfiguration — MCP tool names have a defined upper bound.
 export const MAX_TOOL_NAME_LENGTH = 256;
 
@@ -27,8 +24,9 @@ export const DEFAULT_MODEL_PATTERNS: readonly string[] = [
   "minimax-token-plan/*",
   "minimax-cn-token-plan/*",
 ];
-export const DEFAULT_IMAGE_ANALYSIS_TOOL = "mcp_minimax_understand_image";
+export const DEFAULT_IMAGE_ANALYSIS_TOOL = "MiniMax_understand_image";
 export const DEFAULT_CLEANUP_AFTER_HOURS = 24;
+export const DEFAULT_DISABLE_CODE_MODE = true;
 
 // MIME types — OpenCode normalizes all JPEG variants to image/jpeg,
 // so image/jpg (non-standard, not in IANA registry) is not needed.

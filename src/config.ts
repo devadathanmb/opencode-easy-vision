@@ -1,3 +1,4 @@
+import type { ConfigAccessors, PluginConfig, Logger } from "./types.js";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { copyFile, mkdir, readFile } from "node:fs/promises";
@@ -6,30 +7,16 @@ import { fileURLToPath } from "node:url";
 import stripJsonComments from "strip-json-comments";
 import {
   CONFIG_FILENAME,
-  CONFIG_FILENAME_JSONC,
-  LEGACY_CONFIG_FILENAME,
-  LEGACY_CONFIG_FILENAME_JSONC,
   EXAMPLE_CONFIG_FILENAME,
+  REMOVED_CONFIG_FILENAME,
   TEMP_DIR_NAME,
-  LEGACY_TEMP_DIR_NAME,
   MAX_TOOL_NAME_LENGTH,
   PROMPT_TEMPLATE_VARIABLES,
   DEFAULT_MODEL_PATTERNS,
   DEFAULT_IMAGE_ANALYSIS_TOOL,
   DEFAULT_CLEANUP_AFTER_HOURS,
+  DEFAULT_DISABLE_CODE_MODE,
 } from "./constants.js";
-import type { PluginConfig, Logger } from "./types.js";
-
-let pluginConfig: PluginConfig = {};
-
-// Path Resolution
-function getUserConfigPath(filename: string): string {
-  return join(homedir(), ".config", "opencode", filename);
-}
-
-function getProjectConfigPath(directory: string, filename: string): string {
-  return join(directory, ".opencode", filename);
-}
 
 // File Parsing
 function parseModelsArray(value: unknown): string[] | undefined {
@@ -68,6 +55,10 @@ function parseCleanupAfterHours(value: unknown): number | undefined {
   return value;
 }
 
+function parseDisableCodeMode(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
+}
+
 function parseConfigObject(raw: unknown): PluginConfig {
   if (!raw || typeof raw !== "object") return {};
 
@@ -78,6 +69,7 @@ function parseConfigObject(raw: unknown): PluginConfig {
     promptTemplate: parsePromptTemplate(obj.promptTemplate),
     tempDir: parseTempDir(obj.tempDir),
     cleanupAfterHours: parseCleanupAfterHours(obj.cleanupAfterHours),
+    disableCodeMode: parseDisableCodeMode(obj.disableCodeMode),
   };
 }
 
@@ -98,53 +90,19 @@ async function readConfigFile(
   }
 }
 
-type LoadedConfig = {
-  config: PluginConfig;
-  path: string;
-};
-
-type ConfigPaths = {
-  jsonc: string;
-  json: string;
-};
-
-async function readConfigPair(
-  paths: ConfigPaths,
-  onParseError: (path: string) => void,
-): Promise<LoadedConfig | null> {
-  const jsoncConfig = await readConfigFile(paths.jsonc, onParseError);
-  if (jsoncConfig !== null) return { config: jsoncConfig, path: paths.jsonc };
-
-  const jsonConfig = await readConfigFile(paths.json, onParseError);
-  return jsonConfig === null ? null : { config: jsonConfig, path: paths.json };
-}
-
-function configExists(paths: ConfigPaths): boolean {
-  return existsSync(paths.jsonc) || existsSync(paths.json);
-}
-
 async function loadConfigAtLevel(
   level: "project" | "user",
-  currentPaths: ConfigPaths,
-  legacyPaths: ConfigPaths,
+  directory: string,
   onParseError: (path: string) => void,
   log: Logger,
-): Promise<LoadedConfig | null> {
-  const current = await readConfigPair(currentPaths, onParseError);
-  if (current !== null) {
-    if (configExists(legacyPaths)) {
-      log(
-        `Ignoring alternate ${level} config because ${current.path} is present`,
-      );
-    }
-    return current;
-  }
-
-  const legacy = await readConfigPair(legacyPaths, onParseError);
-  if (legacy !== null) {
-    log(`Using ${level} config at ${legacy.path}`);
-  }
-  return legacy;
+): Promise<PluginConfig | null> {
+  const removed = join(directory, REMOVED_CONFIG_FILENAME);
+  if (existsSync(removed))
+    log(`WARN: ${removed} is no longer read; rename it to ${CONFIG_FILENAME}`);
+  const path = join(directory, CONFIG_FILENAME);
+  const config = await readConfigFile(path, onParseError);
+  if (config !== null) log(`Using ${level} config at ${path}`);
+  return config;
 }
 
 // Example Config Auto-Init
@@ -194,10 +152,12 @@ function selectConfigValue<T>(
   return { value: undefined, source: "default" };
 }
 
-export async function loadPluginConfig(
+async function loadPluginConfig(
   directory: string,
   log: Logger,
-): Promise<void> {
+  userDirectory: string,
+  autoInit: boolean,
+): Promise<PluginConfig> {
   const onParseError = (path: string) =>
     log(`WARN: Config file has invalid JSON and will be ignored: ${path}`);
 
@@ -216,42 +176,21 @@ export async function loadPluginConfig(
     }
   }
 
-  const userPaths = {
-    jsonc: getUserConfigPath(CONFIG_FILENAME_JSONC),
-    json: getUserConfigPath(CONFIG_FILENAME),
-  };
-  const legacyUserPaths = {
-    jsonc: getUserConfigPath(LEGACY_CONFIG_FILENAME_JSONC),
-    json: getUserConfigPath(LEGACY_CONFIG_FILENAME),
-  };
-  const projectPaths = {
-    jsonc: getProjectConfigPath(directory, CONFIG_FILENAME_JSONC),
-    json: getProjectConfigPath(directory, CONFIG_FILENAME),
-  };
-  const legacyProjectPaths = {
-    jsonc: getProjectConfigPath(directory, LEGACY_CONFIG_FILENAME_JSONC),
-    json: getProjectConfigPath(directory, LEGACY_CONFIG_FILENAME),
-  };
-
+  const projectDirectory = join(directory, ".opencode");
   const [projectConfig, userConfig] = await Promise.all([
-    loadConfigAtLevel(
-      "project",
-      projectPaths,
-      legacyProjectPaths,
-      onParseError,
-      log,
-    ),
-    loadConfigAtLevel("user", userPaths, legacyUserPaths, onParseError, log),
+    loadConfigAtLevel("project", projectDirectory, onParseError, log),
+    loadConfigAtLevel("user", userDirectory, onParseError, log),
   ]);
 
-  if (!configExists(userPaths) && !configExists(legacyUserPaths)) {
-    await createExampleConfigIfMissing(userPaths.jsonc, log);
+  // Skip when a pre-2.0 .json exists: the user should rename it instead.
+  if (autoInit && !existsSync(join(userDirectory, REMOVED_CONFIG_FILENAME))) {
+    await createExampleConfigIfMissing(
+      join(userDirectory, CONFIG_FILENAME),
+      log,
+    );
   }
 
-  const models = selectConfigValue(
-    projectConfig?.config.models,
-    userConfig?.config.models,
-  );
+  const models = selectConfigValue(projectConfig?.models, userConfig?.models);
   logSelected(
     "models",
     models,
@@ -260,8 +199,8 @@ export async function loadPluginConfig(
   );
 
   const imageAnalysisTool = selectConfigValue(
-    projectConfig?.config.imageAnalysisTool,
-    userConfig?.config.imageAnalysisTool,
+    projectConfig?.imageAnalysisTool,
+    userConfig?.imageAnalysisTool,
   );
   logSelected(
     "imageAnalysisTool",
@@ -271,8 +210,8 @@ export async function loadPluginConfig(
   );
 
   const promptTemplate = selectConfigValue(
-    projectConfig?.config.promptTemplate,
-    userConfig?.config.promptTemplate,
+    projectConfig?.promptTemplate,
+    userConfig?.promptTemplate,
   );
   logSelected(
     "promptTemplate",
@@ -282,14 +221,14 @@ export async function loadPluginConfig(
   );
 
   const tempDir = selectConfigValue(
-    projectConfig?.config.tempDir,
-    userConfig?.config.tempDir,
+    projectConfig?.tempDir,
+    userConfig?.tempDir,
   );
   logSelected("tempDir", tempDir, tempDir.value ?? "", null);
 
   const cleanupAfterHours = selectConfigValue(
-    projectConfig?.config.cleanupAfterHours,
-    userConfig?.config.cleanupAfterHours,
+    projectConfig?.cleanupAfterHours,
+    userConfig?.cleanupAfterHours,
   );
   logSelected(
     "cleanupAfterHours",
@@ -298,42 +237,54 @@ export async function loadPluginConfig(
     `Using default cleanupAfterHours: ${DEFAULT_CLEANUP_AFTER_HOURS}`,
   );
 
-  pluginConfig = {
+  const disableCodeMode = selectConfigValue(
+    projectConfig?.disableCodeMode,
+    userConfig?.disableCodeMode,
+  );
+  logSelected(
+    "disableCodeMode",
+    disableCodeMode,
+    String(disableCodeMode.value),
+    null,
+  );
+
+  return {
     models: models.value,
     imageAnalysisTool: imageAnalysisTool.value,
     promptTemplate: promptTemplate.value,
     tempDir: tempDir.value,
     cleanupAfterHours: cleanupAfterHours.value,
+    disableCodeMode: disableCodeMode.value,
   };
 }
 
-// Accessors
-export function getConfiguredModels(): readonly string[] {
-  return pluginConfig.models ?? DEFAULT_MODEL_PATTERNS;
-}
-
-export function getImageAnalysisTool(): string {
-  return pluginConfig.imageAnalysisTool ?? DEFAULT_IMAGE_ANALYSIS_TOOL;
-}
-
-export function getPromptTemplate(): string | undefined {
-  return pluginConfig.promptTemplate;
-}
-
-export function getTempDir(): string {
-  return pluginConfig.tempDir ?? join(tmpdir(), TEMP_DIR_NAME);
-}
-
-export function getTempDirsForCleanup(): readonly string[] {
-  return [
-    ...new Set([
-      getTempDir(),
-      join(tmpdir(), TEMP_DIR_NAME),
-      join(tmpdir(), LEGACY_TEMP_DIR_NAME),
-    ]),
-  ];
-}
-
-export function getCleanupAfterHours(): number {
-  return pluginConfig.cleanupAfterHours ?? DEFAULT_CLEANUP_AFTER_HOURS;
+export function createConfigStore(
+  initial: PluginConfig = {},
+  options: { userDirectory?: string; autoInit?: boolean } = {},
+): ConfigAccessors & { load(directory: string, log: Logger): Promise<void> } {
+  let config: PluginConfig = { ...initial, models: initial.models?.slice() };
+  const getTempDir = () => config.tempDir ?? join(tmpdir(), TEMP_DIR_NAME);
+  return {
+    async load(directory, log) {
+      config = await loadPluginConfig(
+        directory,
+        log,
+        options.userDirectory ?? join(homedir(), ".config", "opencode"),
+        options.autoInit ?? true,
+      );
+    },
+    getConfiguredModels: () =>
+      (config.models ?? DEFAULT_MODEL_PATTERNS).slice(),
+    getImageAnalysisTool: () =>
+      config.imageAnalysisTool ?? DEFAULT_IMAGE_ANALYSIS_TOOL,
+    getPromptTemplate: () => config.promptTemplate,
+    getTempDir,
+    getTempDirsForCleanup: () => [
+      ...new Set([getTempDir(), join(tmpdir(), TEMP_DIR_NAME)]),
+    ],
+    getCleanupAfterHours: () =>
+      config.cleanupAfterHours ?? DEFAULT_CLEANUP_AFTER_HOURS,
+    getDisableCodeMode: () =>
+      config.disableCodeMode ?? DEFAULT_DISABLE_CODE_MODE,
+  };
 }

@@ -1,5 +1,4 @@
-import { getConfiguredModels } from "./config.js";
-import type { ModelInfo } from "./types.js";
+import type { ConfigAccessors, ModelInfo } from "./types.js";
 
 function matchesWildcardPattern(pattern: string, value: string): boolean {
   const p = pattern.toLowerCase();
@@ -47,9 +46,11 @@ function matchesSinglePattern(pattern: string, model: ModelInfo): boolean {
   );
 }
 
-export function modelMatchesAnyPattern(model: ModelInfo | undefined): boolean {
-  if (!model) return false;
-
-  const patterns = getConfiguredModels();
-  return patterns.some((pattern) => matchesSinglePattern(pattern, model));
+export function createModelMatcher(config: ConfigAccessors) {
+  return (model: ModelInfo | undefined): boolean => {
+    if (!model) return false;
+    return config
+      .getConfiguredModels()
+      .some((pattern) => matchesSinglePattern(pattern, model));
+  };
 }
