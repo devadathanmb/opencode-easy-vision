@@ -1,6 +1,6 @@
 {
   "name": "opencode-easy-vision",
-  "version": "1.6.1",
+  "version": "2.0.0",
   "description": "OpenCode plugin that restores the paste-and-ask workflow for text-only models by saving pasted images and injecting MCP tool instructions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
