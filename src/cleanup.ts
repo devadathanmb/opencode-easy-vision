@@ -1,13 +1,12 @@
+import type { ConfigAccessors, Logger } from "./types.js";
 import { join } from "node:path";
 import { readdir, stat, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { getTempDirsForCleanup, getCleanupAfterHours } from "./config.js";
-import type { Logger } from "./types.js";
+import { withFileLock } from "./file-lock.js";
 
-// Keep matching legacy UUID names while also accepting deterministic SHA-256 names.
-// Both formats are plugin-owned, so unrelated files in custom directories are safe.
-const PLUGIN_FILE_PATTERN =
-  /^(?:[0-9a-f]{64}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(png|jpg|webp)$/;
+// Only deterministic SHA-256 names are plugin-owned, so unrelated files in custom
+// directories are never touched.
+const PLUGIN_FILE_PATTERN = /^[0-9a-f]{64}\.(png|jpg|webp)$/;
 
 async function tryDeleteIfExpired(
   filepath: string,
@@ -43,7 +42,11 @@ async function cleanupTempDir(
       .map((e) => join(dir, e));
 
     const results = await Promise.all(
-      candidates.map((filepath) => tryDeleteIfExpired(filepath, now, cutoffMs)),
+      candidates.map((filepath) =>
+        withFileLock(filepath, () =>
+          tryDeleteIfExpired(filepath, now, cutoffMs),
+        ),
+      ),
     );
     const deleted = results.filter(Boolean).length;
     if (deleted > 0) log(`Cleaned up ${deleted} old temp file(s) from ${dir}`);
@@ -52,13 +55,16 @@ async function cleanupTempDir(
   }
 }
 
-export async function cleanupOldTempFiles(log: Logger): Promise<void> {
-  const cutoffMs = getCleanupAfterHours() * 60 * 60 * 1000;
+export async function cleanupOldTempFiles(
+  config: ConfigAccessors,
+  log: Logger,
+): Promise<void> {
+  const cutoffMs = config.getCleanupAfterHours() * 60 * 60 * 1000;
   const now = Date.now();
 
   await Promise.all(
-    getTempDirsForCleanup().map((dir) =>
-      cleanupTempDir(dir, now, cutoffMs, log),
-    ),
+    config
+      .getTempDirsForCleanup()
+      .map((dir) => cleanupTempDir(dir, now, cutoffMs, log)),
   );
 }

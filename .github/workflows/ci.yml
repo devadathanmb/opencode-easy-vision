@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   ci:
-    name: Format & Build
+    name: Format, Build, Type-check & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,3 +28,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Type-check tests
+        run: npm run typecheck
+
+      - name: Test with coverage thresholds
+        run: npm run test:coverage

@@ -1,15 +1,45 @@
+import type { Media } from "@opencode/ai";
+
 export interface PluginConfig {
   models?: string[];
   imageAnalysisTool?: string;
   promptTemplate?: string;
   tempDir?: string;
   cleanupAfterHours?: number;
+  disableCodeMode?: boolean;
 }
 
 export interface SavedImage {
   path: string;
   mime: string;
-  partId: string; // ID of the original FilePart, used to remove it from the message after injection
+}
+
+export interface ImageAttachment {
+  mime: string;
+  source: Media.Source;
+  requiresHeaders?: boolean;
+}
+
+export type ImageResult =
+  | { ok: true; image: SavedImage }
+  | { ok: false; reason: string };
+
+export interface ConfigAccessors {
+  getConfiguredModels(): readonly string[];
+  getImageAnalysisTool(): string;
+  getPromptTemplate(): string | undefined;
+  getTempDir(): string;
+  getTempDirsForCleanup(): readonly string[];
+  getCleanupAfterHours(): number;
+  getDisableCodeMode(): boolean;
+}
+
+export type ToolRoute = "direct" | "codemode" | "unavailable";
+
+// The fields of OpenCode's tool registry entries that routing needs.
+export interface RegisteredTool {
+  id: string;
+  options?: { codemode?: boolean };
 }
 
 export interface ModelInfo {
@@ -17,11 +47,9 @@ export interface ModelInfo {
   modelID: string;
 }
 
-// Logger writes to the app's structured log (silent to the user).
-// Notifier surfaces visible toast messages for errors the user should act on.
-export type Logger = (msg: string) => void;
+// Both go to OpenCode's log; the plugin has no UI of its own.
+export type Logger = (message: string) => void;
 
-export type Notifier = {
-  warn: (message: string, title?: string) => void;
-  error: (message: string, title?: string) => void;
-};
+export interface Notifier {
+  warn: Logger;
+}

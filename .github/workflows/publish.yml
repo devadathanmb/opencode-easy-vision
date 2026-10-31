@@ -49,5 +49,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 2.x (OpenCode v2 only) ships under `next` so `latest` keeps serving 1.x to
+      # OpenCode v1 users. Promote later with `npm dist-tag add opencode-easy-vision@<version> latest`.
       - name: Publish
-        run: npm publish --access public
+        run: npm publish --access public --tag next

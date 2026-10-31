@@ -1,126 +1,71 @@
-import type { Plugin } from "@opencode-ai/plugin";
-import { PLUGIN_NAME } from "./constants.js";
-import { loadPluginConfig, getImageAnalysisTool } from "./config.js";
-import { modelMatchesAnyPattern } from "./patterns.js";
-import { isImageFilePart, extractImagesFromParts } from "./images.js";
-import { generateInjectionPrompt } from "./prompt.js";
-import {
-  isTextPart,
-  findLastUserMessage,
-  getModelFromMessage,
-  removeProcessedImageParts,
-  withUpdatedTextPart,
-} from "./transform.js";
-import { cleanupOldTempFiles } from "./cleanup.js";
+import type { Plugin } from "@opencode/plugin/effect";
 import type { Logger, Notifier } from "./types.js";
+import { Effect } from "effect";
+import { PLUGIN_NAME } from "./constants.js";
+import { createConfigStore } from "./config.js";
+import { cleanupOldTempFiles } from "./cleanup.js";
+import { createCodeModeTransform } from "./codemode.js";
+import { createRequestRewriter } from "./request.js";
 
-export const EasyVisionPlugin: Plugin = async (input) => {
-  const { client, directory } = input;
-
-  const log: Logger = (msg) => {
-    client.app
-      .log({ body: { service: PLUGIN_NAME, level: "info", message: msg } })
-      .catch(() => {});
-  };
-
-  function makeNotifyMethod(
-    level: "warn" | "error",
-    variant: "warning" | "error",
-  ) {
-    return (message: string, title?: string) => {
-      client.app
-        .log({ body: { service: PLUGIN_NAME, level, message } })
-        .catch(() => {});
-      client.tui
-        .showToast({ body: { title, message, variant, duration: 5000 } })
-        .catch(() => {});
+// The Effect API is used only for this shell: OpenCode drops plugin console
+// output, but Effect logs inherit the host logger and reach OpenCode's log file.
+// `effect` resolves to the host's instance at runtime.
+export const EasyVisionPlugin: Plugin.Plugin = {
+  id: "opencode-easy-vision",
+  effect: Effect.fn(function* (ctx) {
+    const services = yield* Effect.context<never>();
+    const run = Effect.runPromiseWith(services);
+    const emit = (effect: Effect.Effect<void>) => {
+      Effect.runForkWith(services)(
+        effect.pipe(Effect.annotateLogs("plugin", PLUGIN_NAME)),
+      );
     };
-  }
+    const log: Logger = (message) => emit(Effect.logInfo(message));
+    const notify: Notifier = {
+      warn: (message) => emit(Effect.logWarning(message)),
+    };
 
-  const notify: Notifier = {
-    warn: makeNotifyMethod("warn", "warning"),
-    error: makeNotifyMethod("error", "error"),
-  };
+    const config = createConfigStore();
+    yield* Effect.promise(() => config.load(ctx.location.directory, log));
+    yield* Effect.promise(() => cleanupOldTempFiles(config, log));
 
-  await loadPluginConfig(directory, log);
-  await cleanupOldTempFiles(log);
-  log("Plugin initialized");
-
-  return {
-    "experimental.chat.messages.transform": async (_input, output) => {
-      const { messages } = output;
-
-      const result = findLastUserMessage(messages);
-      if (!result) return;
-
-      const { message: lastUserMessage, index: lastUserIndex } = result;
-
-      const model = getModelFromMessage(lastUserMessage);
-      if (!modelMatchesAnyPattern(model)) return;
-
-      const hasImages = lastUserMessage.parts.some(isImageFilePart);
-      if (!hasImages) return;
-
-      log("Found images in message, processing");
-
-      // Collect all image part IDs up front so failed saves are also removed from the
-      // message — otherwise raw data: blobs stay in parts and the model can't use them.
-      const allImagePartIds = new Set(
-        lastUserMessage.parts.filter(isImageFilePart).map((p) => p.id),
-      );
-
-      const savedImages = await extractImagesFromParts(
-        lastUserMessage.parts,
-        log,
-        notify,
-      );
-      if (savedImages.length === 0) {
-        log("Failed to process any attached images");
-        notify.error(
-          "Could not process attached images. Check logs for details.",
-          "Easy Vision",
-        );
-        messages[lastUserIndex] = {
-          ...lastUserMessage,
-          parts: removeProcessedImageParts(
-            lastUserMessage.parts,
-            allImagePartIds,
+    const requests = createRequestRewriter(
+      config,
+      {
+        directory: ctx.location.directory,
+        getSessionDirectory: (sessionID) =>
+          run(ctx.session.get({ sessionID })).then(
+            (session) => session.location.directory,
           ),
-        };
-        return;
-      }
+        listTools: () => run(ctx.tool.list()),
+      },
+      log,
+      notify,
+    );
 
-      if (savedImages.length < allImagePartIds.size) {
-        notify.warn(
-          `${savedImages.length} of ${allImagePartIds.size} image(s) were processed successfully. Some images could not be saved.`,
-          "Easy Vision",
-        );
-      }
-
-      log(`Saved ${savedImages.length} image(s), injecting tool instructions`);
-
-      const existingTextPart = lastUserMessage.parts.find(isTextPart);
-      const userText = existingTextPart?.text ?? "";
-
-      const transformedText = generateInjectionPrompt(
-        savedImages,
-        userText,
-        getImageAnalysisTool(),
-      );
-
-      const trimmedParts = removeProcessedImageParts(
-        lastUserMessage.parts,
-        allImagePartIds,
-      );
-      messages[lastUserIndex] = {
-        ...lastUserMessage,
-        parts: withUpdatedTextPart(
-          { ...lastUserMessage, parts: trimmedParts },
-          transformedText,
-        ),
-      };
-    },
-  };
+    yield* ctx.mcp.transform(
+      createCodeModeTransform(
+        config.getImageAnalysisTool,
+        config.getDisableCodeMode,
+        log,
+      ),
+    );
+    yield* ctx.session.hook("context", (event) =>
+      Effect.promise(() => requests.rewrite(event, false, event.tools)),
+    );
+    yield* ctx.session.hook("compaction", (event) =>
+      Effect.promise(() => requests.rewrite(event, true)),
+    );
+    yield* ctx.session.hook("title", (event) =>
+      Effect.promise(() => requests.rewrite(event, true)),
+    );
+    // Compaction, title and transient generation get image paths but never tool instructions.
+    yield* ctx.session.hook("generate", (event) =>
+      Effect.promise(() => requests.rewrite(event, true)),
+    );
+    yield* Effect.addFinalizer(() => Effect.sync(requests.dispose));
+    log("Plugin initialized");
+  }),
 };
 
 export default EasyVisionPlugin;
